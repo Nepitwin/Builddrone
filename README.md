@@ -1,6 +1,8 @@
-# 🚀 Buildrone
+# 🚀 Builddrone
 
-**Buildrone** is a modular, JSON-driven build orchestration framework and CLI.
+![Builddrone](logo.png)
+
+**Builddrone** is a modular, JSON-driven build orchestration framework and CLI.
 It allows you to define build pipelines declaratively and execute them through pluggable modules.
 
 > 🛠️ *"Build pipelines on autopilot."*
@@ -76,17 +78,17 @@ Create a file called `build.json`:
 
 ---
 
-## 🧱 Using Buildrone as a Framework
+## 🧱 Using Builddrone as a Framework
 
-You can use Buildrone programmatically:
+You can use Builddrone programmatically:
 
 ```python
-from buildrone.engine import ExecutionEngine
-from buildrone.modules.compile import CompileModule
-from buildrone.modules.codesign import CodesignModule
-from buildrone.modules.compress import CompressModule
-from buildrone.modules.zip import ZipModule
-from buildrone.modules.artifactory import ArtifactoryModule
+from builddrone.engine import ExecutionEngine
+from builddrone.modules.compile import CompileModule
+from builddrone.modules.codesign import CodesignModule
+from builddrone.modules.compress import CompressModule
+from builddrone.modules.zip import ZipModule
+from builddrone.modules.artifactory import ArtifactoryModule
 
 modules = {
     "compile": CompileModule(),
@@ -107,7 +109,7 @@ engine.run("build.json", "build")
 You can define your own modules:
 
 ```python
-from buildrone.modules.base import BaseModule
+from builddrone.modules.base import BaseModule
 import subprocess
 
 class MyCustomModule(BaseModule):

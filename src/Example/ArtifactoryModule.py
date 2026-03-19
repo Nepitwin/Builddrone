@@ -1,4 +1,4 @@
-from Buildrone.base import BaseModule
+from Builddrone.BaseModule import BaseModule
 
 
 class ArtifactoryModule(BaseModule):
