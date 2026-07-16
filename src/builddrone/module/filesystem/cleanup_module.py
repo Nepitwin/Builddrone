@@ -1,6 +1,6 @@
 import os
 import shutil
-from builddrone.base import BaseModule
+from builddrone.base_module import BaseModule
 from builddrone.runner import Runner
 
 

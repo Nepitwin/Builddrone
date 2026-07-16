@@ -1,6 +1,6 @@
 import json
 
-from builddrone.base import BaseModule
+from builddrone.base_module import BaseModule
 from builddrone.module.filesystem.cleanup_module import CleanupModule as FilesystemCleanupModule
 from builddrone.runner import Runner
 

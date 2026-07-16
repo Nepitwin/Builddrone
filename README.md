@@ -83,7 +83,7 @@ Create a file called `build.json`:
 You can use Builddrone programmatically:
 
 ```python
-from builddrone.engine import ExecutionEngine
+from builddrone.execution_engine import ExecutionEngine
 from builddrone.modules.compile import CompileModule
 from builddrone.modules.codesign import CodesignModule
 from builddrone.modules.compress import CompressModule
