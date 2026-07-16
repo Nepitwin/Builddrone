@@ -109,7 +109,7 @@ engine.run("build.json", "build")
 You can define your own modules:
 
 ```python
-from builddrone.modules.base import BaseModule
+from builddrone.base_module import BaseModule
 import subprocess
 
 class MyCustomModule(BaseModule):
