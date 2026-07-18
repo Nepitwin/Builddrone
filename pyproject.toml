@@ -1,7 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
 [project]
 name = "builddrone"
 version = "0.1.0"
 description = "Modular build framework"
 authors = [{ name = "Andreas Sekulski" }]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
+    "pytest",
+    "black",
+    "isort",
+    "pylint"
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]

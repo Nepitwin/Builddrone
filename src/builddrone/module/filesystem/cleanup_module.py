@@ -1,10 +1,13 @@
+"""Filesystem cleanup module."""
+
 import os
 import shutil
+
 from builddrone.base_module import BaseModule
 from builddrone.runner import Runner
 
 
-class CleanupModule(BaseModule):
+class CleanupModule(BaseModule):  # pylint: disable=too-few-public-methods
     """A module responsible for cleanup operations.
 
     This module handles cleanup, such as removing temporary files or folders.
@@ -26,7 +29,7 @@ class CleanupModule(BaseModule):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
                     runner.logger.info(f"Deleted file: {file_path}")
-            except Exception as e:
+            except OSError as e:
                 runner.logger.error(f"Error deleting file {file_path}: {e}")
 
     @staticmethod
@@ -36,5 +39,5 @@ class CleanupModule(BaseModule):
                 if os.path.isdir(folder_path):
                     shutil.rmtree(folder_path)
                     runner.logger.info(f"Deleted folder: {folder_path}")
-            except Exception as e:
+            except OSError as e:
                 runner.logger.error(f"Error deleting folder {folder_path}: {e}")

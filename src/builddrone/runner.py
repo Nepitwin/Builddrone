@@ -1,9 +1,13 @@
-import subprocess
-import os
-import sys
+"""Runner module for executing build commands."""
+
 import logging
+import os
+import subprocess
+import sys
+
 
 class Runner:
+    """Execute build commands using a configured Python interpreter."""
 
     def __init__(self):
         # Set up basic logging
@@ -15,17 +19,22 @@ class Runner:
             raise RuntimeError("Python executable not found")
 
     def set_runner(self, python_path):
+        """Set the Python executable used for command execution."""
         if os.path.exists(python_path) and os.path.isfile(python_path):
-            print("Setting python")
             self._python_path = python_path
 
     def reset_runner(self):
+        """Reset the runner to use the current Python interpreter."""
         self._python_path = sys.executable
         if not self._python_path:
             raise RuntimeError("Python executable not found")
 
     def run(self, cmd, cwd=None) -> int:
+        """Execute a Python command and return the exit code."""
         full_cmd = [self._python_path] + cmd
-        print(f"\n>>> {' '.join(map(str, full_cmd))}")
-        result = subprocess.run(full_cmd, cwd=cwd)
+        result = subprocess.run(
+            full_cmd,
+            cwd=cwd,
+            check=False,
+        )
         return result.returncode
