@@ -4,6 +4,7 @@ import os
 import shutil
 
 from builddrone.base_module import BaseModule
+from builddrone.drone_exception import DroneException
 from builddrone.runner import Runner
 
 
@@ -29,8 +30,12 @@ class CleanupModule(BaseModule):  # pylint: disable=too-few-public-methods
                 if os.path.isfile(file_path):
                     os.remove(file_path)
                     runner.logger.info(f"Deleted file: {file_path}")
+                else:
+                    raise DroneException(f"Is not a file: {file_path}")
             except OSError as e:
-                runner.logger.error(f"Error deleting file {file_path}: {e}")
+                msg = f"Error deleting file {file_path} : {e}"
+                runner.logger.error(msg)
+                raise DroneException(msg) from e
 
     @staticmethod
     def _delete_folders(runner: Runner, folders: list):
@@ -39,5 +44,9 @@ class CleanupModule(BaseModule):  # pylint: disable=too-few-public-methods
                 if os.path.isdir(folder_path):
                     shutil.rmtree(folder_path)
                     runner.logger.info(f"Deleted folder: {folder_path}")
+                else:
+                    raise DroneException(f"Is not a folder: {folder_path}")
             except OSError as e:
-                runner.logger.error(f"Error deleting folder {folder_path}: {e}")
+                msg = f"Error deleting folder {folder_path} : {e}"
+                runner.logger.error(msg)
+                raise DroneException(msg) from e

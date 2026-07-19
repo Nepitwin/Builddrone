@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
+from builddrone.drone_exception import DroneException
 from builddrone.module.filesystem.cleanup_module import CleanupModule
 from builddrone.runner import Runner
 
@@ -53,9 +54,10 @@ class TestCleanupModule(unittest.TestCase):
 
         nonexistent_file = "/nonexistent/file.txt"
 
-        cleanup.run(self.mock_runner, {"files": [nonexistent_file]})
+        with self.assertRaises(DroneException) as context:
+            cleanup.run(self.mock_runner, {"files": [nonexistent_file]})
 
-        # File does not exist -> no action
+        self.assertEqual(str(context.exception), f"Is not a file: {nonexistent_file}")
         self.mock_runner.logger.error.assert_not_called()
 
     def test_run_with_nonexistent_folders(self):
@@ -63,9 +65,12 @@ class TestCleanupModule(unittest.TestCase):
 
         nonexistent_folder = "/nonexistent/folder"
 
-        cleanup.run(self.mock_runner, {"folders": [nonexistent_folder]})
+        with self.assertRaises(DroneException) as context:
+            cleanup.run(self.mock_runner, {"folders": [nonexistent_folder]})
 
-        # Folder does not exist -> no action
+        self.assertEqual(
+            str(context.exception), f"Is not a folder: {nonexistent_folder}"
+        )
         self.mock_runner.logger.error.assert_not_called()
 
     def test_run_with_empty_args(self):
@@ -83,10 +88,15 @@ class TestCleanupModule(unittest.TestCase):
 
         cleanup = CleanupModule()
 
-        cleanup._delete_files(self.mock_runner, ["/some/file.txt"])
+        with self.assertRaises(DroneException) as context:
+            cleanup._delete_files(self.mock_runner, ["/some/file.txt"])
 
+        self.assertEqual(
+            str(context.exception),
+            "Error deleting file /some/file.txt : Permission denied",
+        )
         self.mock_runner.logger.error.assert_called_with(
-            "Error deleting file /some/file.txt: Permission denied"
+            "Error deleting file /some/file.txt : Permission denied"
         )
 
     @patch("builddrone.module.filesystem.cleanup_module.shutil.rmtree")
@@ -97,8 +107,13 @@ class TestCleanupModule(unittest.TestCase):
 
         cleanup = CleanupModule()
 
-        cleanup._delete_folders(self.mock_runner, ["/some/folder"])
+        with self.assertRaises(DroneException) as context:
+            cleanup._delete_folders(self.mock_runner, ["/some/folder"])
 
+        self.assertEqual(
+            str(context.exception),
+            "Error deleting folder /some/folder : Permission denied",
+        )
         self.mock_runner.logger.error.assert_called_with(
-            "Error deleting folder /some/folder: Permission denied"
+            "Error deleting folder /some/folder : Permission denied"
         )
