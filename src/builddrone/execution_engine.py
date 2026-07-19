@@ -3,6 +3,7 @@
 import json
 
 from builddrone.base_module import BaseModule
+from builddrone.drone_exception import DroneException
 from builddrone.module.filesystem.cleanup_module import (
     CleanupModule as FilesystemCleanupModule,
 )
@@ -27,7 +28,7 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         config = self._load_config(config_path)
 
         if stage not in config:
-            raise ValueError(f"Stage '{stage}' not found in config")
+            raise DroneException(f"Stage '{stage}' not found in config")
 
         steps = config[stage]
 
@@ -39,13 +40,13 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         module_name = step.get("module")
 
         if module_name is None or not isinstance(module_name, str):
-            raise ValueError("Unknown module name")
+            raise DroneException("Unknown module name")
 
         args = step.get("args", {})
         module = self._modules.get(module_name)
 
         if module is None:
-            raise ValueError(f"Unknown module: {module_name}")
+            raise DroneException(f"Unknown module: {module_name}")
 
         module.run(self._runner, args)
 
