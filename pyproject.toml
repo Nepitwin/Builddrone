@@ -36,3 +36,7 @@ line_length = 88
 pythonpath = [
     "src"
 ]
+
+
+[tool.pylint.main]
+init-hook = "import sys; sys.path.insert(0, 'src')"

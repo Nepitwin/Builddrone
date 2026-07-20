@@ -79,7 +79,7 @@ jobs:
 
       - name: Run pylint
         run: |
-          pylint src/builddrone
+          pylint $(git ls-files '*.py')
 
 
   pytest:
