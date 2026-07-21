@@ -1,26 +1,21 @@
-﻿"""Execution engine for running builddrone pipeline stages."""
+"""Execution engine for running builddrone pipeline stages."""
 
 import json
+from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
 from builddrone.module.filesystem.cleanup_module import (
     CleanupModule as FilesystemCleanupModule,
 )
-from builddrone.module.filesystem.copy_module import (
-    FilesystemCopyModule,
-)
+from builddrone.module.filesystem.copy_module import FilesystemCopyModule
 from builddrone.module.python.build_module import PythonBuildModule
 from builddrone.module.python.install_module import PythonInstallModule
 from builddrone.module.python.pylint_module import PylintModule
 from builddrone.module.python.run_module import PythonRunModule
 from builddrone.module.python.venv_module import PythonVirtualEnvironmentModule
-from builddrone.module.robotframework.rebot_module import (
-    RobotframeworkRebotModule,
-)
-from builddrone.module.robotframework.test_module import (
-    RobotframeworkTestModule,
-)
+from builddrone.module.robotframework.rebot_module import RobotframeworkRebotModule
+from builddrone.module.robotframework.test_module import RobotframeworkTestModule
 from builddrone.runner import Runner
 
 
@@ -47,6 +42,8 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
 
     def run(self, config_path: str, stage: str) -> None:
         """Execute a build stage from a configuration file."""
+        config_file = Path(config_path).resolve()
+        self._runner.set_base_path(config_file.parent)
         config = self._load_config(config_path)
 
         if stage not in config:

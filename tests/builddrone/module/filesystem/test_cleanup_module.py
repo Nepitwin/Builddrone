@@ -1,4 +1,4 @@
-﻿"""Tests for the filesystem cleanup module."""
+"""Tests for the filesystem cleanup module."""
 
 import os
 import shutil
@@ -19,16 +19,19 @@ class TestCleanupModule(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
 
         self.test_file = os.path.join(self.temp_dir, "test_file.txt")
+        self.relative_file = "test_file.txt"
 
         self.test_folder = os.path.join(self.temp_dir, "test_folder")
+        self.relative_folder = "test_folder"
 
         os.makedirs(self.test_folder)
 
-        with open(self.test_file, "w", encoding="utf-8") as f:
-            f.write("test content")
+        with open(self.test_file, "w", encoding="utf-8") as file:
+            file.write("test content")
 
         self.mock_runner = MagicMock(spec=Runner)
         self.mock_runner.logger = MagicMock()
+        self.mock_runner.get_base_path.return_value = self.temp_dir
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -38,7 +41,10 @@ class TestCleanupModule(unittest.TestCase):
         """Delete both a file and a folder successfully."""
         cleanup = CleanupModule()
 
-        args = {"files": [self.test_file], "folders": [self.test_folder]}
+        args = {
+            "files": [self.relative_file],
+            "folders": [self.relative_folder],
+        }
 
         cleanup.run(self.mock_runner, args)
 
@@ -46,38 +52,28 @@ class TestCleanupModule(unittest.TestCase):
         self.assertFalse(os.path.exists(self.test_folder))
 
         self.mock_runner.logger.info.assert_any_call("Cleaning up...")
-
         self.mock_runner.logger.info.assert_any_call(f"Deleted file: {self.test_file}")
-
         self.mock_runner.logger.info.assert_any_call(
             f"Deleted folder: {self.test_folder}"
         )
 
     def test_run_with_nonexistent_files(self):
-        """Raise when asked to remove a missing file."""
+        """Ignore missing files without raising."""
         cleanup = CleanupModule()
 
-        nonexistent_file = "/nonexistent/file.txt"
+        cleanup.run(self.mock_runner, {"files": ["missing.txt"]})
 
-        with self.assertRaises(DroneException) as context:
-            cleanup.run(self.mock_runner, {"files": [nonexistent_file]})
-
-        self.assertEqual(str(context.exception), f"Is not a file: {nonexistent_file}")
         self.mock_runner.logger.error.assert_not_called()
+        self.mock_runner.logger.info.assert_called_with("Cleaning up...")
 
     def test_run_with_nonexistent_folders(self):
-        """Raise when asked to remove a missing folder."""
+        """Ignore missing folders without raising."""
         cleanup = CleanupModule()
 
-        nonexistent_folder = "/nonexistent/folder"
+        cleanup.run(self.mock_runner, {"folders": ["missing-folder"]})
 
-        with self.assertRaises(DroneException) as context:
-            cleanup.run(self.mock_runner, {"folders": [nonexistent_folder]})
-
-        self.assertEqual(
-            str(context.exception), f"Is not a folder: {nonexistent_folder}"
-        )
         self.mock_runner.logger.error.assert_not_called()
+        self.mock_runner.logger.info.assert_called_with("Cleaning up...")
 
     def test_run_with_empty_args(self):
         """Allow empty args without raising."""
@@ -88,41 +84,37 @@ class TestCleanupModule(unittest.TestCase):
         self.mock_runner.logger.info.assert_called_with("Cleaning up...")
 
     @patch("builddrone.module.filesystem.cleanup_module.os.remove")
-    @patch("builddrone.module.filesystem.cleanup_module.os.path.isfile")
-    def test_delete_files_with_exception(self, mock_isfile, mock_remove):
+    def test_delete_files_with_exception(self, mock_remove):
         """Surface file-deletion failures through DroneException."""
-        mock_isfile.return_value = True
         mock_remove.side_effect = PermissionError("Permission denied")
 
         cleanup = CleanupModule()
 
         with self.assertRaises(DroneException) as context:
-            cleanup.run(self.mock_runner, {"files": ["/some/file.txt"]})
+            cleanup.run(self.mock_runner, {"files": [self.test_file]})
 
         self.assertEqual(
             str(context.exception),
-            "Error deleting file /some/file.txt : Permission denied",
+            f"Error deleting file {self.test_file} : Permission denied",
         )
         self.mock_runner.logger.error.assert_called_with(
-            "Error deleting file /some/file.txt : Permission denied"
+            f"Error deleting file {self.test_file} : Permission denied"
         )
 
     @patch("builddrone.module.filesystem.cleanup_module.shutil.rmtree")
-    @patch("builddrone.module.filesystem.cleanup_module.os.path.isdir")
-    def test_delete_folders_with_exception(self, mock_isdir, mock_rmtree):
+    def test_delete_folders_with_exception(self, mock_rmtree):
         """Surface folder-deletion failures through DroneException."""
-        mock_isdir.return_value = True
         mock_rmtree.side_effect = PermissionError("Permission denied")
 
         cleanup = CleanupModule()
 
         with self.assertRaises(DroneException) as context:
-            cleanup.run(self.mock_runner, {"folders": ["/some/folder"]})
+            cleanup.run(self.mock_runner, {"folders": [self.test_folder]})
 
         self.assertEqual(
             str(context.exception),
-            "Error deleting folder /some/folder : Permission denied",
+            f"Error deleting folder {self.test_folder} : Permission denied",
         )
         self.mock_runner.logger.error.assert_called_with(
-            "Error deleting folder /some/folder : Permission denied"
+            f"Error deleting folder {self.test_folder} : Permission denied"
         )

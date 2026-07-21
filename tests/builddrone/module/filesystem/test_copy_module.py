@@ -17,6 +17,10 @@ class TestFilesystemCopyModule(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        self.mock_runner = MagicMock(spec=Runner)
+        self.mock_runner.logger = MagicMock()
+        self.mock_runner.get_base_path.return_value = self.temp_dir
+
         self.source_dir = os.path.join(self.temp_dir, "source")
         self.destination_dir = os.path.join(self.temp_dir, "destination")
         self.nested_dir = os.path.join(self.source_dir, "nested")
@@ -32,15 +36,12 @@ class TestFilesystemCopyModule(unittest.TestCase):
         with open(self.nested_file, "w", encoding="utf-8") as file:
             file.write("nested")
 
-        self.mock_runner = MagicMock(spec=Runner)
-        self.mock_runner.logger = MagicMock()
-
     def tearDown(self):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_run_copies_all_files_recursively(self):
-        """Copy all files from source to destination."""
+        """Copy all files from absolute source to absolute destination."""
         module = FilesystemCopyModule()
 
         module.run(
@@ -56,6 +57,23 @@ class TestFilesystemCopyModule(unittest.TestCase):
             os.path.isfile(os.path.join(self.destination_dir, "nested", "nested.txt"))
         )
         self.mock_runner.logger.info.assert_any_call("Copying files...")
+
+    def test_run_resolves_relative_paths_from_blueprint_directory(self):
+        """Resolve source and destination relative to the blueprint directory."""
+        module = FilesystemCopyModule()
+
+        module.run(
+            self.mock_runner,
+            {
+                "source": "source",
+                "destination": "destination",
+            },
+        )
+
+        self.assertTrue(os.path.isfile(os.path.join(self.destination_dir, "root.txt")))
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.destination_dir, "nested", "nested.txt"))
+        )
 
     def test_run_without_source_raises(self):
         """Reject a missing source directory."""

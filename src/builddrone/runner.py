@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from builddrone.drone_exception import DroneException
 
@@ -12,11 +13,12 @@ class Runner:
     """Execute build commands using a configured Python interpreter."""
 
     def __init__(self):
-        # Set up basic logging
+        """Initialize the runner."""
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
         self._python_path = sys.executable
+        self._base_path: Path | None = None
         if not self._python_path:
             raise DroneException("Python executable not found")
 
@@ -30,6 +32,14 @@ class Runner:
         self._python_path = sys.executable
         if not self._python_path:
             raise DroneException("Python executable not found")
+
+    def set_base_path(self, base_path: str | Path | None) -> None:
+        """Set the base directory used for relative paths."""
+        self._base_path = None if base_path is None else Path(base_path)
+
+    def get_base_path(self) -> Path:
+        """Return the base directory used for relative paths."""
+        return self._base_path or Path.cwd()
 
     def run(self, cmd, cwd=None) -> int:
         """Execute a Python command and return the exit code."""

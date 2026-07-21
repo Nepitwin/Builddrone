@@ -1,0 +1,35 @@
+{
+    "cleanup":{
+        "clean-all-build-data":{
+            "module":"filesystem.cleanup",
+            "args":{
+                "folders":[
+                    "binaries",
+                    "dist",
+                    "build",
+                    "obj",
+                    "example"
+                ],
+                "files":[
+                    "example/blueprint.json",
+                    "example/blueprint.yaml"
+                ]
+            }
+        }
+    },
+    "copy":{
+        "copy-files":{
+            "module":"filesystem.copy",
+            "args":{
+                "source":"example",
+                "destination":"example_copy"
+            }
+        },
+        "clear-copy-files":{
+            "module":"filesystem.cleanup",
+            "args":{
+                "folders":["example_copy"]
+            }
+        }
+    }
+}
