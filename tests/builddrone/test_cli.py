@@ -35,7 +35,9 @@ class TestBuilddroneCli(unittest.TestCase):
     def test_main_exits_with_error_on_drone_exception(self, mock_engine):
         """main should return a non-zero exit code when execution fails."""
         engine_instance = MagicMock()
-        engine_instance.run.side_effect = DroneException("Stage 'copy' not found in config")
+        engine_instance.run.side_effect = DroneException(
+            "Stage 'copy' not found in config"
+        )
         mock_engine.return_value = engine_instance
 
         with self.assertRaises(SystemExit) as context:

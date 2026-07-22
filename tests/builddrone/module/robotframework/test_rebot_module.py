@@ -1,5 +1,8 @@
 ﻿"""Tests for the Robot Framework rebot module."""
 
+# These tests intentionally mirror the robot module's contract.
+# pylint: disable=duplicate-code
+
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock

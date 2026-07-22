@@ -2,6 +2,7 @@
 
 import os
 
+
 def main() -> None:
     """Create the example structure used by the CLI."""
     folders = ["binaries", "dist", "build", "obj", "example"]
