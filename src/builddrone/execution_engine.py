@@ -22,13 +22,17 @@ from builddrone.runner import Runner
 class ExecutionEngine:  # pylint: disable=too-few-public-methods
     """Execute configured builddrone stages."""
 
-    def __init__(self, modules: dict[str, BaseModule]):
+    def __init__(
+        self,
+        modules: dict[str, BaseModule]
+    ):
         """Initialize the execution engine.
 
         Args:
             modules: Registered builddrone modules.
         """
         self._modules = modules
+        self._config_path = Path("blueprint.json")
         self._register_module("filesystem.cleanup", FilesystemCleanupModule())
         self._register_module("filesystem.copy", FilesystemCopyModule())
         self._register_module("python.build", PythonBuildModule())
@@ -40,11 +44,12 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         self._register_module("robotframework.rebot", RobotframeworkRebotModule())
         self._runner = Runner()
 
-    def run(self, config_path: str, stage: str) -> None:
+    def run(self, stage: str) -> None:
         """Execute a build stage from a configuration file."""
-        config_file = Path(config_path).resolve()
+        config_path = self._config_path
+        config_file = config_path.resolve()
         self._runner.set_base_path(config_file.parent)
-        config = self._load_config(config_path)
+        config = self._load_config(str(config_path))
 
         if stage not in config:
             raise DroneException(f"Stage '{stage}' not found in config")

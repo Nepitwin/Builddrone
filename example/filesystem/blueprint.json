@@ -8,11 +8,12 @@
                     "dist",
                     "build",
                     "obj",
-                    "example"
+                    "example",
+                    "example_copy"
                 ],
                 "files":[
-                    "example/blueprint.json",
-                    "example/blueprint.yaml"
+                    "my_file.json",
+                    "my_file.yaml"
                 ]
             }
         }
@@ -23,12 +24,6 @@
             "args":{
                 "source":"example",
                 "destination":"example_copy"
-            }
-        },
-        "clear-copy-files":{
-            "module":"filesystem.cleanup",
-            "args":{
-                "folders":["example_copy"]
             }
         }
     }

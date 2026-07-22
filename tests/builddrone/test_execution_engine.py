@@ -1,6 +1,7 @@
 ﻿"""Tests for the Builddrone execution engine."""
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -77,9 +78,9 @@ class TestExecutionEngine(unittest.TestCase):
         engine = ExecutionEngine({})
 
         with self.assertRaises(DroneException) as context:
-            engine.run("config.json", "release")
+            engine.run("release")
 
-        mock_load_config.assert_called_once_with("config.json")
+        mock_load_config.assert_called_once_with("blueprint.json")
         self.assertEqual(str(context.exception), "Stage 'release' not found in config")
 
     @patch("builddrone.execution_engine.Runner")
@@ -101,12 +102,12 @@ class TestExecutionEngine(unittest.TestCase):
         modules = {"custom": custom_module}
         engine = ExecutionEngine(modules)
 
-        engine.run("config.json", "build")
+        engine.run("build")
 
         self.assertEqual(custom_module.run.call_count, 2)
         custom_module.run.assert_any_call(runner_instance, {"name": "first"})
         custom_module.run.assert_any_call(runner_instance, {"name": "second"})
-        mock_load_config.assert_called_once_with("config.json")
+        mock_load_config.assert_called_once_with("blueprint.json")
 
     @patch("builddrone.execution_engine.Runner")
     @patch.object(
@@ -120,9 +121,9 @@ class TestExecutionEngine(unittest.TestCase):
         engine = ExecutionEngine({})
 
         with self.assertRaises(DroneException) as context:
-            engine.run("config.json", "build")
+            engine.run("build")
 
-        mock_load_config.assert_called_once_with("config.json")
+        mock_load_config.assert_called_once_with("blueprint.json")
         self.assertEqual(str(context.exception), "Unknown module name")
 
     @patch("builddrone.execution_engine.Runner")
@@ -137,9 +138,9 @@ class TestExecutionEngine(unittest.TestCase):
         engine = ExecutionEngine({})
 
         with self.assertRaises(DroneException) as context:
-            engine.run("config.json", "build")
+            engine.run("build")
 
-        mock_load_config.assert_called_once_with("config.json")
+        mock_load_config.assert_called_once_with("blueprint.json")
         self.assertEqual(str(context.exception), "Unknown module: missing")
 
     @patch("builddrone.execution_engine.Runner")
@@ -149,15 +150,20 @@ class TestExecutionEngine(unittest.TestCase):
         runner_instance = MagicMock()
         mock_runner.return_value = runner_instance
         with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = Path(temp_dir) / "build.json"
+            config_path = Path(temp_dir) / "blueprint.json"
             config_data = {"build": {"step": {"module": "custom", "args": {}}}}
 
             config_path.write_text(json.dumps(config_data), encoding="utf-8")
             mock_json_load.return_value = config_data
 
-            custom_module = MagicMock()
-            engine = ExecutionEngine({"custom": custom_module})
-            engine.run(str(config_path), "build")
+            original_cwd = os.getcwd()
+            try:
+                os.chdir(temp_dir)
+                custom_module = MagicMock()
+                engine = ExecutionEngine({"custom": custom_module})
+                engine.run("build")
+            finally:
+                os.chdir(original_cwd)
 
         mock_json_load.assert_called_once()
         custom_module.run.assert_called_once_with(runner_instance, {})

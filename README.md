@@ -78,6 +78,20 @@ Create a file called `build.json`:
 
 ---
 
+## 🖥️ Command Line Usage
+
+After installing the package into your environment, and with a `blueprint.json`
+in the current directory, run a stage directly:
+
+```bash
+python -m builddrone copy
+```
+
+This loads `blueprint.json` from the current working directory and executes the
+requested stage.
+
+---
+
 ## 🧱 Using Builddrone as a Framework
 
 You can use Builddrone programmatically:
@@ -99,7 +113,7 @@ modules = {
 }
 
 engine = ExecutionEngine(modules)
-engine.run("build.json", "build")
+engine.run("build")
 ```
 
 ---
