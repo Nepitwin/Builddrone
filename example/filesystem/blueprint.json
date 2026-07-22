@@ -1,9 +1,9 @@
 {
-    "cleanup":{
-        "clean-all-build-data":{
-            "module":"filesystem.cleanup",
-            "args":{
-                "folders":[
+    "cleanup": [
+        {
+            "module": "filesystem.cleanup",
+            "args": {
+                "folders": [
                     "binaries",
                     "dist",
                     "build",
@@ -11,20 +11,20 @@
                     "example",
                     "example_copy"
                 ],
-                "files":[
+                "files": [
                     "my_file.json",
                     "my_file.yaml"
                 ]
             }
         }
-    },
-    "copy":{
-        "copy-files":{
-            "module":"filesystem.copy",
-            "args":{
-                "source":"example",
-                "destination":"example_copy"
+    ],
+    "copy": [
+        {
+            "module": "filesystem.copy",
+            "args": {
+                "source": "example",
+                "destination": "example_copy"
             }
         }
-    }
+    ]
 }

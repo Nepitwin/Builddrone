@@ -26,36 +26,36 @@ Create a file called `build.json`:
 
 ```json
 {
-  "build": {
-    "compile": {
+  "build": [
+    {
       "module": "compile",
       "args": {
         "cmd": "dotnet build"
       }
     },
-    "codesign": {
+    {
       "module": "codesign",
       "args": {
         "path_env": "codesign_path",
         "cmd": "codesign my_build.dll"
       }
     },
-    "compress": {
+    {
       "module": "compress",
       "args": {
         "format": "zstd",
         "input": "binaries"
       }
     },
-    "zip": {
+    {
       "module": "zip",
       "args": {
         "files": "my_folder"
       }
     }
-  },
-  "upload": {
-    "artifactory": {
+  ],
+  "upload": [
+    {
       "module": "artifactory",
       "args": {
         "token_env": "artifactory_token_env",
@@ -63,7 +63,7 @@ Create a file called `build.json`:
         "cmd": "jfrogv2.exe upload"
       }
     }
-  }
+  ]
 }
 ```
 
@@ -72,7 +72,7 @@ Create a file called `build.json`:
 ## 🧠 How It Works
 
 * Top-level keys (`build`, `upload`) are **stages**
-* Each stage contains **steps**
+* Each stage is an ordered **list of steps**
 * Each step maps to a **module**
 * Modules receive **args** and execute logic
 
@@ -147,12 +147,12 @@ Use it in JSON:
 
 ```json
 {
-  "build": {
-    "custom_step": {
+  "build": [
+    {
       "module": "custom",
       "args": {}
     }
-  }
+  ]
 }
 ```
 

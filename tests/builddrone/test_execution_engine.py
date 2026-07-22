@@ -71,7 +71,7 @@ class TestExecutionEngine(unittest.TestCase):
         self.assertIn("custom", modules)
 
     @patch("builddrone.execution_engine.Runner")
-    @patch.object(ExecutionEngine, "_load_config", return_value={"build": {}})
+    @patch.object(ExecutionEngine, "_load_config", return_value={"build": []})
     def test_run_raises_when_stage_is_missing(self, mock_load_config, mock_runner):
         """run should fail when the requested stage is absent."""
         mock_runner.return_value = MagicMock()
@@ -88,10 +88,10 @@ class TestExecutionEngine(unittest.TestCase):
         ExecutionEngine,
         "_load_config",
         return_value={
-            "build": {
-                "first": {"module": "custom", "args": {"name": "first"}},
-                "second": {"module": "custom", "args": {"name": "second"}},
-            }
+            "build": [
+                {"module": "custom", "args": {"name": "first"}},
+                {"module": "custom", "args": {"name": "second"}},
+            ]
         },
     )
     def test_run_executes_steps_in_order(self, mock_load_config, mock_runner):
@@ -113,7 +113,7 @@ class TestExecutionEngine(unittest.TestCase):
     @patch.object(
         ExecutionEngine,
         "_load_config",
-        return_value={"build": {"step": {"args": {}}}},
+        return_value={"build": [{"args": {}}]},
     )
     def test_run_rejects_unknown_module_name(self, mock_load_config, mock_runner):
         """run should reject steps that omit a module name."""
@@ -130,7 +130,7 @@ class TestExecutionEngine(unittest.TestCase):
     @patch.object(
         ExecutionEngine,
         "_load_config",
-        return_value={"build": {"step": {"module": "missing", "args": {}}}},
+        return_value={"build": [{"module": "missing", "args": {}}]},
     )
     def test_run_rejects_unregistered_module(self, mock_load_config, mock_runner):
         """run should reject steps that reference unknown modules."""
@@ -144,6 +144,36 @@ class TestExecutionEngine(unittest.TestCase):
         self.assertEqual(str(context.exception), "Unknown module: missing")
 
     @patch("builddrone.execution_engine.Runner")
+    @patch.object(
+        ExecutionEngine,
+        "_load_config",
+        return_value={"build": {"named-step": {"module": "custom"}}},
+    )
+    def test_run_rejects_legacy_named_steps(self, _mock_load_config, mock_runner):
+        """Reject stages that are not ordered step lists."""
+        mock_runner.return_value = MagicMock()
+        engine = ExecutionEngine({"custom": MagicMock()})
+
+        with self.assertRaises(DroneException) as context:
+            engine.run("build")
+
+        self.assertEqual(
+            str(context.exception), "Stage 'build' must be a list of steps"
+        )
+
+    @patch("builddrone.execution_engine.Runner")
+    @patch.object(ExecutionEngine, "_load_config", return_value={"build": ["step"]})
+    def test_run_rejects_non_object_step(self, _mock_load_config, mock_runner):
+        """Reject list entries that are not step objects."""
+        mock_runner.return_value = MagicMock()
+        engine = ExecutionEngine({})
+
+        with self.assertRaises(DroneException) as context:
+            engine.run("build")
+
+        self.assertEqual(str(context.exception), "Pipeline step must be an object")
+
+    @patch("builddrone.execution_engine.Runner")
     @patch("builddrone.execution_engine.json.load")
     def test_run_loads_json_config(self, mock_json_load, mock_runner):
         """run should deserialize the JSON configuration from disk."""
@@ -151,7 +181,7 @@ class TestExecutionEngine(unittest.TestCase):
         mock_runner.return_value = runner_instance
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "blueprint.json"
-            config_data = {"build": {"step": {"module": "custom", "args": {}}}}
+            config_data = {"build": [{"module": "custom", "args": {}}]}
 
             config_path.write_text(json.dumps(config_data), encoding="utf-8")
             mock_json_load.return_value = config_data

@@ -22,10 +22,7 @@ from builddrone.runner import Runner
 class ExecutionEngine:  # pylint: disable=too-few-public-methods
     """Execute configured builddrone stages."""
 
-    def __init__(
-        self,
-        modules: dict[str, BaseModule]
-    ):
+    def __init__(self, modules: dict[str, BaseModule]):
         """Initialize the execution engine.
 
         Args:
@@ -56,11 +53,17 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
 
         steps = config[stage]
 
-        for _, step in steps.items():
+        if not isinstance(steps, list):
+            raise DroneException(f"Stage '{stage}' must be a list of steps")
+
+        for step in steps:
             self._execute_step(step)
 
     def _execute_step(self, step: dict) -> None:
         """Execute a single build step."""
+        if not isinstance(step, dict):
+            raise DroneException("Pipeline step must be an object")
+
         module_name = step.get("module")
 
         if module_name is None or not isinstance(module_name, str):
