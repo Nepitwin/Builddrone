@@ -29,8 +29,17 @@ class RobotframeworkBaseModule(
         if cwd is not None and not isinstance(cwd, (str, Path)):
             raise DroneException("Cwd must be a path or string")
 
+        working_directory = Path(runner.get_base_path())
+        if cwd is not None:
+            configured_cwd = Path(cwd)
+            working_directory = (
+                configured_cwd
+                if configured_cwd.is_absolute()
+                else working_directory / configured_cwd
+            )
+
         command = self._build_command(arguments)
-        exit_code = runner.run(command, cwd=str(cwd) if cwd is not None else None)
+        exit_code = runner.run(command, cwd=str(working_directory))
 
         if exit_code != 0:
             raise DroneException(

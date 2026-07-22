@@ -1,6 +1,7 @@
 ﻿"""Tests for the Python run module."""
 
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from builddrone.drone_exception import DroneException
@@ -15,6 +16,7 @@ class TestPythonRunModule(unittest.TestCase):
         """Set up a mocked runner."""
         self.mock_runner = MagicMock(spec=Runner)
         self.mock_runner.logger = MagicMock()
+        self.mock_runner.get_base_path.return_value = Path("blueprint")
 
     def test_run_executes_source(self):
         """Run a Python source file."""
@@ -24,7 +26,9 @@ class TestPythonRunModule(unittest.TestCase):
         module.run(self.mock_runner, {"source": "src/app.py"})
 
         self.mock_runner.logger.info.assert_called_with("Running...")
-        self.mock_runner.run.assert_called_once_with(["src/app.py"])
+        self.mock_runner.run.assert_called_once_with(
+            ["src/app.py"], cwd=str(Path("blueprint"))
+        )
 
     def test_run_without_source_raises(self):
         """Reject missing source file."""

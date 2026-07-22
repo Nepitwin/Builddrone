@@ -17,6 +17,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
         """Set up a mocked runner."""
         self.mock_runner = MagicMock(spec=Runner)
         self.mock_runner.logger = MagicMock()
+        self.mock_runner.get_base_path.return_value = Path.cwd()
 
     def test_run_sets_runner_from_venv_root(self):
         """Resolve the interpreter from a .venv-style root path."""
@@ -30,10 +31,25 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
             module.run(self.mock_runner, {"source": str(venv_root)})
 
         self.mock_runner.logger.info.assert_called_with(
-            "Using virtual environment: %s", str(venv_root)
+            "Using virtual environment: %s", venv_root
         )
         self.mock_runner.set_runner.assert_called_once_with(str(python_executable))
         self.mock_runner.reset_runner.assert_not_called()
+
+    def test_run_resolves_relative_source_from_runner_base_path(self):
+        """Resolve a relative environment from the blueprint directory."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_path = Path(temp_dir)
+            python_executable = base_path / ".venv" / "bin" / "python"
+            python_executable.parent.mkdir(parents=True)
+            python_executable.write_text("", encoding="utf-8")
+            self.mock_runner.get_base_path.return_value = base_path
+
+            module = PythonVirtualEnvironmentModule()
+            module.run(self.mock_runner, {"source": ".venv"})
+
+        self.mock_runner.get_base_path.assert_called_once_with()
+        self.mock_runner.set_runner.assert_called_once_with(str(python_executable))
 
     def test_run_empty_source_resets_runner(self):
         """Reset the runner when source is an empty string."""
@@ -66,5 +82,6 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
             module.run(self.mock_runner, {"source": "missing/.venv"})
 
         self.assertEqual(
-            str(context.exception), "Invalid virtual environment path: missing/.venv"
+            str(context.exception),
+            f"Invalid virtual environment path: {Path.cwd() / 'missing/.venv'}",
         )

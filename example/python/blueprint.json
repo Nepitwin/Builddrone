@@ -1,0 +1,29 @@
+{
+    "build":{
+        "venv":{
+            "module":"python.venv",
+            "args":{
+                "source": ".venv"
+            }
+        },
+        "install":{
+            "module":"python.install",
+            "args":{
+                "requirements": "requirements.txt"
+            }
+        },
+        "linter-folder":{
+            "module":"python.pylint",
+            "args":{
+                "paths": ["."],
+                "ignore": [".venv"]
+            }
+        },
+        "linter-files":{
+            "module":"python.pylint",
+            "args":{
+                "files": ["main.py"]
+            }
+        }
+    }
+}

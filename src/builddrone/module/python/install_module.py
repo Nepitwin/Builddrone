@@ -10,6 +10,7 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
 
     Blueprint configuration arguments:
         "source": "Package source to install"
+        "requirements": "Requirements file to install"
     """
 
     def run(self, runner: Runner, args: dict) -> None:
@@ -21,11 +22,19 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
         """
         runner.logger.info("Installing...")
         source = args.get("source")
+        requirements = args.get("requirements")
 
-        if not isinstance(source, str) or not source:
-            raise DroneException("No source provided for install")
+        if isinstance(requirements, str) and requirements:
+            install_args = ["-r", requirements]
+        elif isinstance(source, str) and source:
+            install_args = [source]
+        else:
+            raise DroneException("No source or requirements provided for install")
 
-        exit_code = runner.run(["-m", "pip", "install", source])
+        exit_code = runner.run(
+            ["-m", "pip", "install", *install_args],
+            cwd=str(runner.get_base_path()),
+        )
 
         if exit_code != 0:
             raise DroneException(f"Install failed with exit code {exit_code}")

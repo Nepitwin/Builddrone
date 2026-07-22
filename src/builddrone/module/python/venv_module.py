@@ -28,12 +28,16 @@ class PythonVirtualEnvironmentModule(
         if not isinstance(source, str) or not source:
             raise DroneException("No source provided for virtual environment")
 
-        python_executable = self._resolve_python_executable(Path(source))
+        venv_path = Path(source)
+        if not venv_path.is_absolute():
+            venv_path = Path(runner.get_base_path()) / venv_path
+
+        python_executable = self._resolve_python_executable(venv_path)
 
         if python_executable is None:
-            raise DroneException(f"Invalid virtual environment path: {source}")
+            raise DroneException(f"Invalid virtual environment path: {venv_path}")
 
-        runner.logger.info("Using virtual environment: %s", source)
+        runner.logger.info("Using virtual environment: %s", venv_path)
         runner.set_runner(str(python_executable))
 
     @staticmethod

@@ -20,7 +20,7 @@ class PythonBuildModule(BaseModule):  # pylint: disable=too-few-public-methods
             _args: Module configuration arguments. Unused.
         """
         runner.logger.info("Building...")
-        exit_code = runner.run(["-m", "build"])
+        exit_code = runner.run(["-m", "build"], cwd=str(runner.get_base_path()))
 
         if exit_code != 0:
             raise DroneException(f"Build failed with exit code {exit_code}")

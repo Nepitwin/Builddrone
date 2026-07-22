@@ -4,3 +4,4 @@ __pycache__
 dist
 build
 src/builddrone.egg-info
+.venv

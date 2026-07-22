@@ -25,7 +25,7 @@ class PythonRunModule(BaseModule):  # pylint: disable=too-few-public-methods
         if not isinstance(source, str) or not source:
             raise DroneException("No source provided for run")
 
-        exit_code = runner.run([source])
+        exit_code = runner.run([source], cwd=str(runner.get_base_path()))
 
         if exit_code != 0:
             raise DroneException(f"Run failed with exit code {exit_code}")

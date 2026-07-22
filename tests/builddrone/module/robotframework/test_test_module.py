@@ -16,6 +16,8 @@ class TestRobotframeworkTestModule(unittest.TestCase):
         """Set up a mocked runner."""
         self.mock_runner = MagicMock(spec=Runner)
         self.mock_runner.logger = MagicMock()
+        self.base_path = Path("blueprint")
+        self.mock_runner.get_base_path.return_value = self.base_path
 
     def test_run_builds_command_from_dictionary(self):
         """Convert a dictionary of arguments into a robot command."""
@@ -49,7 +51,17 @@ class TestRobotframeworkTestModule(unittest.TestCase):
                 "../result/uia2",
                 ".",
             ],
-            cwd=str(cwd),
+            cwd=str(self.base_path / cwd),
+        )
+
+    def test_run_without_cwd_uses_runner_base_path(self):
+        """Use the blueprint directory when cwd is omitted."""
+        self.mock_runner.run.return_value = 0
+
+        RobotframeworkTestModule().run(self.mock_runner, {"arguments": {}})
+
+        self.mock_runner.run.assert_called_once_with(
+            ["-m", "robot"], cwd=str(self.base_path)
         )
 
     def test_run_without_arguments_dictionary_raises(self):
