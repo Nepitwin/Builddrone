@@ -1,5 +1,7 @@
 # Builddrone
 
+![Builddrone](logo.png)
+
 Builddrone is a JSON-driven build orchestration framework and command-line
 interface for Python projects. A pipeline is made up of named stages, and each
 stage executes an ordered list of registered modules.
