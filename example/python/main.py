@@ -1,17 +1,13 @@
-"""Create the virtual environment used by the Python example blueprint."""
+"""Example application used by the Python blueprint.
 
-import venv
-from pathlib import Path
-
-VIRTUAL_ENV = Path(".venv")
+The blueprint creates ``.venv`` automatically, installs the requirements, and
+then runs the configured linting steps against this file.
+"""
 
 
 def main() -> None:
-    """Create a local virtual environment with pip installed."""
-    if VIRTUAL_ENV.is_dir():
-        return
-
-    venv.EnvBuilder(with_pip=True).create(VIRTUAL_ENV)
+    """Run the Python example application."""
+    print("Hello from main.py")
 
 
 if __name__ == "__main__":

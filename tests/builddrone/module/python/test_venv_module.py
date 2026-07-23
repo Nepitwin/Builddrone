@@ -1,9 +1,9 @@
-﻿"""Tests for the Python virtual environment module."""
+"""Tests for the Python virtual environment module."""
 
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
 from builddrone.module.python.venv_module import PythonVirtualEnvironmentModule
@@ -74,8 +74,31 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
             str(context.exception), "No source provided for virtual environment"
         )
 
-    def test_run_with_invalid_venv_path_raises(self):
-        """Reject a path that does not contain a Python interpreter."""
+    @patch("builddrone.module.python.venv_module.venv.create")
+    def test_run_creates_missing_venv(self, create_venv):
+        """Create and use a virtual environment when it does not exist."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            venv_root = Path(temp_dir) / ".venv"
+            python_executable = venv_root / "bin" / "python"
+
+            def create_environment(path, with_pip):
+                self.assertEqual(path, venv_root)
+                self.assertTrue(with_pip)
+                python_executable.parent.mkdir(parents=True)
+                python_executable.write_text("", encoding="utf-8")
+
+            create_venv.side_effect = create_environment
+
+            module = PythonVirtualEnvironmentModule()
+            module.run(self.mock_runner, {"source": str(venv_root)})
+
+        create_venv.assert_called_once_with(venv_root, with_pip=True)
+        self.mock_runner.set_runner.assert_called_once_with(str(python_executable))
+
+    @patch("builddrone.module.python.venv_module.venv.create")
+    def test_run_with_invalid_venv_path_raises(self, create_venv):
+        """Reject a path when virtual environment creation fails."""
+        create_venv.side_effect = OSError("permission denied")
         module = PythonVirtualEnvironmentModule()
 
         with self.assertRaises(DroneException) as context:
@@ -83,5 +106,5 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
 
         self.assertEqual(
             str(context.exception),
-            f"Invalid virtual environment path: {Path.cwd() / 'missing/.venv'}",
+            f"Could not create virtual environment: {Path.cwd() / 'missing/.venv'}",
         )

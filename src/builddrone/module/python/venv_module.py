@@ -1,5 +1,7 @@
-﻿"""Python virtual environment module."""
+"""Python virtual environment module."""
 
+import subprocess
+import venv
 from pathlib import Path
 
 from builddrone.base_module import BaseModule
@@ -33,6 +35,17 @@ class PythonVirtualEnvironmentModule(
             venv_path = Path(runner.get_base_path()) / venv_path
 
         python_executable = self._resolve_python_executable(venv_path)
+
+        if python_executable is None:
+            runner.logger.info("Creating virtual environment: %s", venv_path)
+            try:
+                venv.create(venv_path, with_pip=True)
+            except (OSError, RuntimeError, subprocess.CalledProcessError) as exception:
+                raise DroneException(
+                    f"Could not create virtual environment: {venv_path}"
+                ) from exception
+
+            python_executable = self._resolve_python_executable(venv_path)
 
         if python_executable is None:
             raise DroneException(f"Invalid virtual environment path: {venv_path}")

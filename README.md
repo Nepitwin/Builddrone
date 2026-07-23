@@ -1,197 +1,165 @@
-# 🚀 Builddrone
+# Builddrone
 
-![Builddrone](logo.png)
+Builddrone is a JSON-driven build orchestration framework and command-line
+interface for Python projects. A pipeline is made up of named stages, and each
+stage executes an ordered list of registered modules.
 
-**Builddrone** is a modular, JSON-driven build orchestration framework and CLI.
-It allows you to define build pipelines declaratively and execute them through pluggable modules.
+## Installation
 
-> 🛠️ *"Build pipelines on autopilot."*
+Install the project and its development tools from the repository root:
 
----
+```bash
+python -m pip install -e ".[dev]"
+```
 
-## ✨ Features
+Builddrone requires Python 3.10 or newer.
 
-* 📦 JSON-based pipeline configuration
-* 🔌 Modular architecture (implement and inject your own build modules)
-* 🧠 Simple execution engine
-* 🚀 Stage-based execution for an easy pipeline usage (`build`, `upload`, etc.)
+## Blueprint format
 
----
-
----
-
-## ⚙️ Example Configuration
-
-Create a file called `build.json`:
+Builddrone loads `blueprint.json` from the current working directory. The
+top-level keys are stage names, and each stage contains module steps:
 
 ```json
 {
   "build": [
     {
-      "module": "compile",
-      "args": {
-        "cmd": "dotnet build"
-      }
+      "module": "python.venv",
+      "args": {"source": ".venv"}
     },
     {
-      "module": "codesign",
-      "args": {
-        "path_env": "codesign_path",
-        "cmd": "codesign my_build.dll"
-      }
+      "module": "python.install",
+      "args": {"requirements": "requirements.txt"}
     },
     {
-      "module": "compress",
-      "args": {
-        "format": "zstd",
-        "input": "binaries"
-      }
-    },
-    {
-      "module": "zip",
-      "args": {
-        "files": "my_folder"
-      }
-    }
-  ],
-  "upload": [
-    {
-      "module": "artifactory",
-      "args": {
-        "token_env": "artifactory_token_env",
-        "jfrog_path_env": "jfrog_path_env",
-        "cmd": "jfrogv2.exe upload"
-      }
+      "module": "python.run",
+      "args": {"source": "main.py"}
     }
   ]
 }
 ```
 
----
+Relative paths are resolved from the directory containing `blueprint.json`.
+Each step runs only after the preceding step succeeds.
 
-## 🧠 How It Works
+## Command-line usage
 
-* Top-level keys (`build`, `upload`) are **stages**
-* Each stage is an ordered **list of steps**
-* Each step maps to a **module**
-* Modules receive **args** and execute logic
-
----
-
-## 🖥️ Command Line Usage
-
-After installing the package into your environment, and with a `blueprint.json`
-in the current directory, run a stage directly:
+Run a stage from the directory containing its blueprint:
 
 ```bash
-python -m builddrone copy
+cd example/python
+python -m builddrone build
+python -m builddrone cleanup
 ```
 
-This loads `blueprint.json` from the current working directory and executes the
-requested stage.
+The Python example creates `.venv` automatically, installs its requirements,
+lints and runs `main.py`, and builds a wheel and source distribution with
+`python -m build`. The separate `cleanup` stage removes the temporary
+environment and generated build artifacts.
 
----
+The Robot Framework example runs similarly:
 
-## 🧱 Using Builddrone as a Framework
+```bash
+cd example/robotframework
+python -m builddrone test
+python -m builddrone cleanup
+```
 
-You can use Builddrone programmatically:
+Its `robotframework.test` step writes `results/output.xml`, and
+`robotframework.rebot` converts that result into reports under
+`results/rebot`.
 
-```python
-from builddrone.execution_engine import ExecutionEngine
-from builddrone.modules.compile import CompileModule
-from builddrone.modules.codesign import CodesignModule
-from builddrone.modules.compress import CompressModule
-from builddrone.modules.zip import ZipModule
-from builddrone.modules.artifactory import ArtifactoryModule
+## Built-in modules
 
-modules = {
-    "compile": CompileModule(),
-    "codesign": CodesignModule(),
-    "compress": CompressModule(),
-    "zip": ZipModule(),
-    "artifactory": ArtifactoryModule()
+### Filesystem
+
+| Module | Arguments | Purpose |
+| --- | --- | --- |
+| `filesystem.copy` | `source`, `destination` | Copy a directory tree. |
+| `filesystem.cleanup` | `files`, `folders` | Remove listed files and folders. |
+
+### Python
+
+| Module | Arguments | Purpose |
+| --- | --- | --- |
+| `python.venv` | `source` | Select an environment, creating it with pip if needed. An empty source resets the runner. |
+| `python.install` | `requirements` or `source` | Install requirements or a package with pip. |
+| `python.run` | `source` | Run a Python source file. |
+| `python.build` | none | Run `python -m build`. |
+| `python.pylint` | `paths`, `files`, `ignore` | Run Pylint against paths or individual files. |
+
+### Robot Framework
+
+Both Robot Framework modules accept an `arguments` dictionary and an optional
+`cwd`:
+
+| Module | Purpose |
+| --- | --- |
+| `robotframework.test` | Run `python -m robot`. |
+| `robotframework.rebot` | Run `python -m robot.rebot` to post-process results. |
+
+Dictionary values are converted to command-line arguments. A `null` value is a
+flag or positional argument, a string receives a following value, and a list
+receives multiple values:
+
+```json
+{
+  "module": "robotframework.test",
+  "args": {
+    "arguments": {
+      "--outputdir": "results",
+      "tests": null
+    }
+  }
 }
-
-engine = ExecutionEngine(modules)
-engine.run("build")
 ```
 
----
+## Using Builddrone as a framework
 
-## 🧩 Creating Custom Modules
-
-You can define your own modules:
+Built-in modules are registered by `ExecutionEngine`. Custom modules can be
+added by passing them to the constructor:
 
 ```python
 from builddrone.base_module import BaseModule
-import subprocess
+from builddrone.execution_engine import ExecutionEngine
 
-class MyCustomModule(BaseModule):
-    def run(self, args, context):
-        subprocess.run("echo Hello from custom module", shell=True)
+
+class GreetingModule(BaseModule):
+    def run(self, runner, args):
+        runner.logger.info("Hello from %s", args.get("name", "Builddrone"))
+
+
+engine = ExecutionEngine({"custom.greeting": GreetingModule()})
+engine.run("build")
 ```
 
-Register it:
-
-```python
-modules = {
-    "custom": MyCustomModule(),
-}
-
-engine = ExecutionEngine(modules)
-
-
-```
-
-Use it in JSON:
+The custom module can then be used in `blueprint.json`:
 
 ```json
 {
   "build": [
     {
-      "module": "custom",
-      "args": {}
+      "module": "custom.greeting",
+      "args": {"name": "Builddrone"}
     }
   ]
 }
 ```
 
----
+Every module receives a `Runner` and a dictionary of arguments. The runner
+executes commands with the currently selected Python interpreter and exposes
+the blueprint's base directory for relative paths.
 
-## 🔄 Execution Flow
+## Execution flow
 
+```text
+python -m builddrone <stage>
+        |
+        v
+load blueprint.json -> select stage -> execute steps -> report failures
 ```
-CLI → Load JSON → Select Stage → Execute Steps → Call Modules
-```
 
----
+Any non-zero command exit code raises `DroneException` and stops the stage.
 
-## 📌 Design Principles
-
-* **Explicit over magic** → modules are injected
-* **Extensible** → add new modules without changing core
-* **Decoupled** → config and execution are separate
-
----
-
-## 🧪 Proof of Concept
-
-This project demonstrates how a simple JSON configuration can drive a full build pipeline:
-
-* Compile code
-* Sign binaries
-* Compress artifacts
-* Package files
-* Upload to artifact storage
-
----
-
-## 📄 License
+## License
 
 MIT License
-
----
-
-## 👨‍💻 Author
-
-Built with ❤️ using Python

@@ -1,5 +1,5 @@
 {
-    "build": [
+    "test": [
         {
             "module": "python.venv",
             "args": {
@@ -13,37 +13,32 @@
             }
         },
         {
-            "module": "python.pylint",
+            "module": "robotframework.test",
             "args": {
-                "paths": ["."],
-                "ignore": [".venv"]
+                "arguments": {
+                    "--outputdir": "results",
+                    "tests": null
+                }
             }
         },
         {
-            "module": "python.pylint",
+            "module": "robotframework.rebot",
             "args": {
-                "files": ["main.py"]
+                "arguments": {
+                    "--outputdir": "results/rebot",
+                    "--name": "Builddrone Robot Example",
+                    "results/output.xml": null
+                }
             }
-        },
-        {
-            "module": "python.run",
-            "args": {
-                "source": "main.py"
-            }
-        },
-        {
-            "module": "python.build",
-            "args": {}
         }
     ],
-    "cleanup":[
+    "cleanup": [
         {
             "module": "filesystem.cleanup",
             "args": {
                 "folders": [
                     ".venv",
-                    "builddrone_python_example.egg-info",
-                    "dist"
+                    "results"
                 ]
             }
         }
