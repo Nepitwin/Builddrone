@@ -1,6 +1,9 @@
 # Builddrone
 
-![Builddrone](logo.png)
+![Builddrone](https://raw.githubusercontent.com/Nepitwin/Builddrone/main/logo.png)
+
+Project: [GitHub](https://github.com/Nepitwin/Builddrone) ·
+[PyPI](https://pypi.org/project/builddrone/)
 
 Builddrone is a JSON-driven build orchestration framework and command-line
 interface for Python projects. A pipeline is made up of named stages, and each
