@@ -11,7 +11,7 @@ class RobotframeworkRebotModule(  # pylint: disable=too-few-public-methods
     """A module responsible for running Robot Framework's rebot command.
 
     Blueprint configuration arguments:
-        "arguments": "Dictionary of CLI arguments to pass to rebot"
+        "arguments": "List of strings or single-entry key/value objects to pass to rebot"
         "cwd": "Optional working directory to run rebot from"
     """
 

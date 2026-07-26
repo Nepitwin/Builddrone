@@ -15,20 +15,20 @@
         {
             "module": "robotframework.test",
             "args": {
-                "arguments": {
-                    "--outputdir": "results",
-                    "tests": null
-                }
+                "arguments": [
+                    {"--outputdir": "results"},
+                    "tests"
+                ]
             }
         },
         {
             "module": "robotframework.rebot",
             "args": {
-                "arguments": {
-                    "--outputdir": "results/rebot",
-                    "--name": "Builddrone Robot Example",
-                    "results/output.xml": null
-                }
+                "arguments": [
+                    {"--outputdir": "results/rebot"},
+                    {"--name": "Builddrone Robot Example"},
+                    "results/output.xml"
+                ]
             }
         }
     ],

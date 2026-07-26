@@ -22,8 +22,8 @@ class TestRobotframeworkTestModule(unittest.TestCase):
         self.base_path = Path("blueprint")
         self.mock_runner.get_base_path.return_value = self.base_path
 
-    def test_run_builds_command_from_dictionary(self):
-        """Convert a dictionary of arguments into a robot command."""
+    def test_run_builds_command_from_key_value_and_standalone_arguments(self):
+        """Convert mixed argument entries into a robot command."""
         self.mock_runner.run.return_value = 0
 
         module = RobotframeworkTestModule()
@@ -31,12 +31,12 @@ class TestRobotframeworkTestModule(unittest.TestCase):
         module.run(
             self.mock_runner,
             {
-                "arguments": {
-                    "--name": "UIA2",
-                    "--variable": "UIA:UIA2",
-                    "--outputdir": "../result/uia2",
-                    ".": None,
-                },
+                "arguments": [
+                    {"--name": "UIA2"},
+                    {"--variable": "UIA:UIA2"},
+                    {"--outputdir": "../result/uia2"},
+                    ".",
+                ],
                 "cwd": cwd,
             },
         )
@@ -61,28 +61,48 @@ class TestRobotframeworkTestModule(unittest.TestCase):
         """Use the blueprint directory when cwd is omitted."""
         self.mock_runner.run.return_value = 0
 
-        RobotframeworkTestModule().run(self.mock_runner, {"arguments": {}})
+        RobotframeworkTestModule().run(self.mock_runner, {"arguments": []})
 
         self.mock_runner.run.assert_called_once_with(
             ["-m", "robot"], cwd=str(self.base_path)
         )
 
-    def test_run_without_arguments_dictionary_raises(self):
-        """Reject arguments that are not dictionaries."""
+    def test_run_without_arguments_list_raises(self):
+        """Reject arguments that are not lists."""
         module = RobotframeworkTestModule()
 
         with self.assertRaises(DroneException) as context:
-            module.run(self.mock_runner, {"arguments": []})
+            module.run(self.mock_runner, {"arguments": {}})
 
-        self.assertEqual(str(context.exception), "Arguments must be a dictionary")
+        self.assertEqual(str(context.exception), "Arguments must be a list")
         self.mock_runner.run.assert_not_called()
+
+    def test_run_rejects_null_and_multi_entry_arguments(self):
+        """Require explicit standalone strings and single key/value pairs."""
+        module = RobotframeworkTestModule()
+
+        for arguments, message in (
+            ([{"tests": None}], "Argument values must not be null"),
+            (
+                [{"--name": "UIA2", "--outputdir": "results"}],
+                "Each argument must be a string or a single key/value pair",
+            ),
+        ):
+            with self.subTest(arguments=arguments):
+                with self.assertRaises(DroneException) as context:
+                    module.run(self.mock_runner, {"arguments": arguments})
+
+                self.assertEqual(str(context.exception), message)
+                self.mock_runner.run.assert_not_called()
 
     def test_run_with_invalid_cwd_raises(self):
         """Reject a cwd value that is not path-like."""
         module = RobotframeworkTestModule()
 
         with self.assertRaises(DroneException) as context:
-            module.run(self.mock_runner, {"arguments": {"--name": "UIA2"}, "cwd": 123})
+            module.run(
+                self.mock_runner, {"arguments": [{"--name": "UIA2"}], "cwd": 123}
+            )
 
         self.assertEqual(str(context.exception), "Cwd must be a path or string")
         self.mock_runner.run.assert_not_called()
@@ -97,7 +117,7 @@ class TestRobotframeworkTestModule(unittest.TestCase):
             module.run(
                 self.mock_runner,
                 {
-                    "arguments": {"--outputdir": "../result/uia2", ".": None},
+                    "arguments": [{"--outputdir": "../result/uia2"}, "."],
                     "cwd": "ROOT/atests",
                 },
             )

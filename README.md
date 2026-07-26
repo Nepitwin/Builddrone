@@ -94,26 +94,28 @@ Its `robotframework.test` step writes `results/output.xml`, and
 
 ### Robot Framework
 
-Both Robot Framework modules accept an `arguments` dictionary and an optional
-`cwd`:
+Both Robot Framework modules accept an ordered `arguments` list and an
+optional `cwd`:
 
 | Module | Purpose |
 | --- | --- |
 | `robotframework.test` | Run `python -m robot`. |
 | `robotframework.rebot` | Run `python -m robot.rebot` to post-process results. |
 
-Dictionary values are converted to command-line arguments. A `null` value is a
-flag or positional argument, a string receives a following value, and a list
-receives multiple values:
+Each string in the list is emitted as a standalone command-line argument. Each
+single-entry object is emitted as a key followed by its value; list values
+emit the key followed by multiple values, and boolean `true` emits only the
+key. This keeps positional arguments explicit and avoids using `null` as a
+sentinel:
 
 ```json
 {
   "module": "robotframework.test",
   "args": {
-    "arguments": {
-      "--outputdir": "results",
-      "tests": null
-    }
+    "arguments": [
+      {"--outputdir": "results"},
+      "tests"
+    ]
   }
 }
 ```

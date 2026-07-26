@@ -11,7 +11,7 @@ class RobotframeworkTestModule(  # pylint: disable=too-few-public-methods
     """A module responsible for running Robot Framework test suites.
 
     Blueprint configuration arguments:
-        "arguments": "Dictionary of CLI arguments to pass to robot"
+        "arguments": "List of strings or single-entry key/value objects to pass to robot"
         "cwd": "Optional working directory to run robot from"
     """
 

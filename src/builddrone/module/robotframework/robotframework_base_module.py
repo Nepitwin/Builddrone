@@ -1,4 +1,4 @@
-﻿"""Shared helpers for Robot Framework modules."""
+"""Shared helpers for Robot Framework modules."""
 
 from abc import ABC
 from pathlib import Path
@@ -20,11 +20,11 @@ class RobotframeworkBaseModule(
     def run(self, runner: Runner, args: dict) -> None:
         """Run a Robot Framework command with expanded CLI arguments."""
         runner.logger.info(self.log_message)
-        arguments = args.get("arguments", {})
+        arguments = args.get("arguments", [])
         cwd = args.get("cwd")
 
-        if not isinstance(arguments, dict):
-            raise DroneException("Arguments must be a dictionary")
+        if not isinstance(arguments, list):
+            raise DroneException("Arguments must be a list")
 
         if cwd is not None and not isinstance(cwd, (str, Path)):
             raise DroneException("Cwd must be a path or string")
@@ -46,11 +46,21 @@ class RobotframeworkBaseModule(
                 f"{self.failure_label} failed with exit code {exit_code}"
             )
 
-    def _build_command(self, arguments: dict) -> list[str]:
-        """Convert a dictionary of CLI options into a Robot Framework command."""
+    def _build_command(self, arguments: list) -> list[str]:
+        """Convert standalone and key/value arguments into a command."""
         command: list[str] = list(self.command_prefix)
 
-        for key, value in arguments.items():
+        for argument in arguments:
+            if isinstance(argument, str):
+                command.append(argument)
+                continue
+
+            if not isinstance(argument, dict) or len(argument) != 1:
+                raise DroneException(
+                    "Each argument must be a string or a single key/value pair"
+                )
+
+            key, value = next(iter(argument.items()))
             if isinstance(value, bool):
                 if value:
                     command.append(str(key))
@@ -62,8 +72,7 @@ class RobotframeworkBaseModule(
                 continue
 
             if value is None:
-                command.append(str(key))
-                continue
+                raise DroneException("Argument values must not be null")
 
             command.extend([str(key), str(value)])
 

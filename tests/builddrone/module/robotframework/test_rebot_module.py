@@ -24,8 +24,8 @@ class TestRobotframeworkRebotModule(unittest.TestCase):
         self.base_path = Path("blueprint")
         self.mock_runner.get_base_path.return_value = self.base_path
 
-    def test_run_builds_command_from_dictionary(self):
-        """Convert a dictionary of arguments into a rebot command."""
+    def test_run_builds_command_from_key_value_and_standalone_arguments(self):
+        """Convert mixed argument entries into a rebot command."""
         self.mock_runner.run.return_value = 0
 
         module = RobotframeworkRebotModule()
@@ -33,13 +33,13 @@ class TestRobotframeworkRebotModule(unittest.TestCase):
         module.run(
             self.mock_runner,
             {
-                "arguments": {
-                    "--name": "ATests",
-                    "--outputdir": "result",
-                    "-x": "rebot_xunit.xml",
-                    "result/uia2/output.xml": None,
-                    "result/uia3/output.xml": None,
-                },
+                "arguments": [
+                    {"--name": "ATests"},
+                    {"--outputdir": "result"},
+                    {"-x": "rebot_xunit.xml"},
+                    "result/uia2/output.xml",
+                    "result/uia3/output.xml",
+                ],
                 "cwd": cwd,
             },
         )
@@ -65,20 +65,20 @@ class TestRobotframeworkRebotModule(unittest.TestCase):
         """Use the blueprint directory when cwd is omitted."""
         self.mock_runner.run.return_value = 0
 
-        RobotframeworkRebotModule().run(self.mock_runner, {"arguments": {}})
+        RobotframeworkRebotModule().run(self.mock_runner, {"arguments": []})
 
         self.mock_runner.run.assert_called_once_with(
             ["-m", "robot.rebot"], cwd=str(self.base_path)
         )
 
-    def test_run_without_arguments_dictionary_raises(self):
-        """Reject arguments that are not dictionaries."""
+    def test_run_without_arguments_list_raises(self):
+        """Reject arguments that are not lists."""
         module = RobotframeworkRebotModule()
 
         with self.assertRaises(DroneException) as context:
-            module.run(self.mock_runner, {"arguments": []})
+            module.run(self.mock_runner, {"arguments": {}})
 
-        self.assertEqual(str(context.exception), "Arguments must be a dictionary")
+        self.assertEqual(str(context.exception), "Arguments must be a list")
         self.mock_runner.run.assert_not_called()
 
     def test_run_with_invalid_cwd_raises(self):
@@ -88,7 +88,7 @@ class TestRobotframeworkRebotModule(unittest.TestCase):
         with self.assertRaises(DroneException) as context:
             module.run(
                 self.mock_runner,
-                {"arguments": {"--outputdir": "result"}, "cwd": 123},
+                {"arguments": [{"--outputdir": "result"}], "cwd": 123},
             )
 
         self.assertEqual(str(context.exception), "Cwd must be a path or string")
@@ -104,7 +104,7 @@ class TestRobotframeworkRebotModule(unittest.TestCase):
             module.run(
                 self.mock_runner,
                 {
-                    "arguments": {"--outputdir": "result", "result/output.xml": None},
+                    "arguments": [{"--outputdir": "result"}, "result/output.xml"],
                     "cwd": "ROOT/atests",
                 },
             )
