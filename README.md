@@ -1,5 +1,6 @@
 # Builddrone
 
+[![PyPI version](https://img.shields.io/pypi/v/builddrone.svg)](https://pypi.org/project/builddrone/)
 ![Builddrone](https://raw.githubusercontent.com/Nepitwin/Builddrone/main/logo.png)
 
 Project: [GitHub](https://github.com/Nepitwin/Builddrone) ·
@@ -11,7 +12,14 @@ stage executes an ordered list of registered modules.
 
 ## Installation
 
-Install the project and its development tools from the repository root:
+Install the latest released version from PyPI:
+
+```bash
+python -m pip install builddrone
+```
+
+For local development, install the project in editable mode together with its
+development tools from the repository root:
 
 ```bash
 python -m pip install -e ".[dev]"
