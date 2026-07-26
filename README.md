@@ -1,11 +1,21 @@
 # Builddrone
 
-<img src="https://raw.githubusercontent.com/Nepitwin/Builddrone/main/logo.png" alt="Builddrone" width="200" height="200">
-
-Project: [GitHub](https://github.com/Nepitwin/Builddrone) ·
-[PyPI](https://pypi.org/project/builddrone/)
-
-[![PyPI version](https://img.shields.io/pypi/v/builddrone.svg)](https://pypi.org/project/builddrone/) [![Tests](https://github.com/Nepitwin/Builddrone/actions/workflows/workflow.yml/badge.svg)](https://github.com/Nepitwin/Builddrone/actions/workflows/workflow.yml)
+<table>
+  <tr>
+    <td rowspan="2" valign="middle">
+      <img src="https://raw.githubusercontent.com/Nepitwin/Builddrone/main/logo.png" alt="Builddrone" width="200" height="200">
+    </td>
+    <td><strong>Project</strong></td>
+    <td><a href="https://github.com/Nepitwin/Builddrone">GitHub</a> · <a href="https://pypi.org/project/builddrone/">PyPI</a></td>
+  </tr>
+  <tr>
+    <td><strong>Environment</strong></td>
+    <td>
+      <a href="https://pypi.org/project/builddrone/"><img src="https://img.shields.io/pypi/v/builddrone.svg" alt="PyPI version"></a>
+      <a href="https://github.com/Nepitwin/Builddrone/actions/workflows/workflow.yml"><img src="https://github.com/Nepitwin/Builddrone/actions/workflows/workflow.yml/badge.svg" alt="Tests"></a>
+    </td>
+  </tr>
+</table>
 
 Builddrone is a JSON-driven build orchestration framework and command-line
 interface for Python projects. A pipeline is made up of named stages, and each
