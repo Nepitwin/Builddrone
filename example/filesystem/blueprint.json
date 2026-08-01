@@ -9,7 +9,8 @@
                     "build",
                     "obj",
                     "example",
-                    "example_copy"
+                    "example_copy",
+                    "example_copy_files"
                 ],
                 "files": [
                     "my_file.json",
@@ -24,6 +25,14 @@
             "args": {
                 "source": "example",
                 "destination": "example_copy"
+            }
+        },
+        {
+            "module": "filesystem.copy",
+            "args": {
+                "source": "example",
+                "files": "*.jpg",
+                "destination": "example_copy_files"
             }
         }
     ]

@@ -29,12 +29,17 @@ class TestFilesystemCopyModule(unittest.TestCase):
 
         self.source_file = os.path.join(self.source_dir, "root.txt")
         self.nested_file = os.path.join(self.nested_dir, "nested.txt")
+        image_file = os.path.join(self.source_dir, "root.jpg")
+        nested_image_file = os.path.join(self.nested_dir, "nested.jpg")
 
-        with open(self.source_file, "w", encoding="utf-8") as file:
-            file.write("root")
-
-        with open(self.nested_file, "w", encoding="utf-8") as file:
-            file.write("nested")
+        for file_path in (
+            self.source_file,
+            self.nested_file,
+            image_file,
+            nested_image_file,
+        ):
+            with open(file_path, "w", encoding="utf-8") as file:
+                file.write(file_path)
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -57,6 +62,44 @@ class TestFilesystemCopyModule(unittest.TestCase):
             os.path.isfile(os.path.join(self.destination_dir, "nested", "nested.txt"))
         )
         self.mock_runner.logger.info.assert_any_call("Copying files...")
+
+    def test_run_copies_only_files_matching_pattern(self):
+        """Copy matching files at every level of the source tree."""
+        module = FilesystemCopyModule()
+
+        module.run(
+            self.mock_runner,
+            {
+                "source": self.source_dir,
+                "files": "*.jpg",
+                "destination": self.destination_dir,
+            },
+        )
+
+        self.assertTrue(os.path.isfile(os.path.join(self.destination_dir, "root.jpg")))
+        self.assertTrue(
+            os.path.isfile(os.path.join(self.destination_dir, "nested", "nested.jpg"))
+        )
+        self.assertFalse(os.path.exists(os.path.join(self.destination_dir, "root.txt")))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.destination_dir, "nested", "nested.txt"))
+        )
+
+    def test_run_with_invalid_files_pattern_raises(self):
+        """Reject a files filter that is not a non-empty string."""
+        module = FilesystemCopyModule()
+
+        with self.assertRaises(DroneException) as context:
+            module.run(
+                self.mock_runner,
+                {
+                    "source": self.source_dir,
+                    "files": ["*.jpg"],
+                    "destination": self.destination_dir,
+                },
+            )
+
+        self.assertEqual(str(context.exception), "Invalid files pattern for copy")
 
     def test_run_resolves_relative_paths_from_blueprint_directory(self):
         """Resolve source and destination relative to the blueprint directory."""
@@ -125,10 +168,11 @@ class TestFilesystemCopyModule(unittest.TestCase):
                 },
             )
 
+        attempted_source = mock_copy2.call_args.args[0]
         self.assertEqual(
             str(context.exception),
-            f"Error copying file {self.source_file} : Permission denied",
+            f"Error copying file {attempted_source} : Permission denied",
         )
         self.mock_runner.logger.error.assert_called_with(
-            f"Error copying file {self.source_file} : Permission denied"
+            f"Error copying file {attempted_source} : Permission denied"
         )

@@ -98,7 +98,7 @@ Its `robotframework.test` step writes `results/output.xml`, and
 
 | Module | Arguments | Purpose |
 | --- | --- | --- |
-| `filesystem.copy` | `source`, `destination` | Copy a directory tree. |
+| `filesystem.copy` | `source`, `destination`, optional `files` | Copy a directory tree, optionally filtering files with a glob such as `*.jpg`. |
 | `filesystem.cleanup` | `files`, `folders` | Remove listed files and folders. |
 
 ### Python

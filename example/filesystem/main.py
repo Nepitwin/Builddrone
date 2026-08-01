@@ -10,7 +10,12 @@ def main() -> None:
         if not os.path.exists(folder):
             os.mkdir(folder)
 
-    files = ["my_file.json", "my_file.yaml"]
+    files = [
+        "my_file.json",
+        "my_file.yaml",
+        os.path.join("example", "my_image.jpg"),
+        os.path.join("example", "ignored.txt"),
+    ]
     for file_path in files:
         if not os.path.exists(file_path):
             with open(file_path, "w", encoding="utf-8") as file:

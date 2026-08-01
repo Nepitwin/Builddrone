@@ -14,6 +14,7 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
 
     Blueprint configuration arguments:
         "source": "Source directory to copy from"
+        "files": "Optional glob pattern selecting files to copy"
         "destination": "Destination directory to copy to"
     """
 
@@ -30,13 +31,22 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
         if not isinstance(destination, str) or not destination:
             raise DroneException("No destination provided for copy")
 
-        self._copy_tree(runner, source, destination, base_path)
+        if args.get("files") is not None and (
+            not isinstance(args.get("files"), str) or not args.get("files")
+        ):
+            raise DroneException("Invalid files pattern for copy")
+
+        self._copy_tree(runner, source, destination, base_path, args.get("files"))
 
     @staticmethod
     def _copy_tree(
-        runner: Runner, source: str, destination: str, base_path: Path
+        runner: Runner,
+        source: str,
+        destination: str,
+        base_path: Path,
+        files_pattern: str | None = None,
     ) -> None:
-        """Copy a directory tree preserving relative paths."""
+        """Copy matching files from a directory tree preserving relative paths."""
         source_path = Path(source)
         destination_path = Path(destination)
 
@@ -61,12 +71,22 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
             os.makedirs(target_root, exist_ok=True)
 
             for file_name in files:
+                if files_pattern and not Path(relative_root, file_name).match(
+                    files_pattern
+                ):
+                    continue
+
                 source_file = os.path.join(root, file_name)
                 destination_file = os.path.join(target_root, file_name)
-                try:
-                    shutil.copy2(source_file, destination_file)
-                    runner.logger.info("Copied file: %s", source_file)
-                except OSError as exc:
-                    msg = f"Error copying file {source_file} : {exc}"
-                    runner.logger.error(msg)
-                    raise DroneException(msg) from exc
+                FilesystemCopyModule._copy_file(runner, source_file, destination_file)
+
+    @staticmethod
+    def _copy_file(runner: Runner, source_file: str, destination_file: str) -> None:
+        """Copy one file and expose filesystem failures as module errors."""
+        try:
+            shutil.copy2(source_file, destination_file)
+            runner.logger.info("Copied file: %s", source_file)
+        except OSError as exc:
+            msg = f"Error copying file {source_file} : {exc}"
+            runner.logger.error(msg)
+            raise DroneException(msg) from exc
