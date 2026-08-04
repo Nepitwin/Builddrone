@@ -36,7 +36,7 @@ development tools from the repository root:
 python -m pip install -e ".[dev]"
 ```
 
-Builddrone requires Python 3.10 or newer.
+Builddrone requires Python 3.8 or newer.
 
 ## Blueprint format
 

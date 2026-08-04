@@ -1,5 +1,7 @@
 """Shared helpers for Robot Framework modules."""
 
+from __future__ import annotations
+
 from abc import ABC
 from pathlib import Path
 

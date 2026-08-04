@@ -1,5 +1,7 @@
 """Python virtual environment module."""
 
+from __future__ import annotations
+
 import subprocess
 import venv
 from pathlib import Path
