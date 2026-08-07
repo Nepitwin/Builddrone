@@ -1,6 +1,6 @@
 # AppVeyor modules
 
-[![AppVeyor build](https://ci.appveyor.com/api/projects/status/github/Nepitwin/Builddrone?branch=main&svg=true)](https://ci.appveyor.com/project/github/nepitwin/builddrone)
+[![AppVeyor build](https://ci.appveyor.com/api/projects/status/github/Nepitwin/Builddrone?branch=main&svg=true)](https://ci.appveyor.com/project/Nepitwin/builddrone)
 
 ## `appveyor.upload.tests`
 
