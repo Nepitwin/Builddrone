@@ -114,6 +114,8 @@ project settings. The build installs Builddrone, runs the `upload` stage from
 
 ### AppVeyor
 
+[![AppVeyor build](https://ci.appveyor.com/api/projects/status/github/Nepitwin/Builddrone?branch=main&svg=true)](https://ci.appveyor.com/project/github/nepitwin/builddrone)
+
 | Module | Arguments | Purpose |
 | --- | --- | --- |
 | `appveyor.upload.tests` | `sources`, optional `repeat`, optional `timeout` | Upload JUnit/xUnit XML files to the AppVeyor test-results API. |
@@ -134,6 +136,12 @@ The job id is read from the `APPVEYOR_JOB_ID` environment variable.
     "timeout": 10
   }
 }
+```
+
+Add a build status badge to your README:
+
+```markdown
+[![AppVeyor build](https://ci.appveyor.com/api/projects/status/github/Nepitwin/Builddrone?branch=main&svg=true)](https://ci.appveyor.com/project/github/nepitwin/builddrone)
 ```
 
 ### Filesystem

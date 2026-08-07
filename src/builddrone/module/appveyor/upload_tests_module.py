@@ -51,9 +51,7 @@ class AppveyorUploadTestsModule(BaseModule):  # pylint: disable=too-few-public-m
                 results_type=results_format,
                 job_id=job_id,
             )
-            self._upload_with_retry(
-                runner, source_path, upload_url, repeat, timeout
-            )
+            self._upload_with_retry(runner, source_path, upload_url, repeat, timeout)
 
     def _upload_with_retry(
         self,
@@ -129,9 +127,7 @@ class AppveyorUploadTestsModule(BaseModule):  # pylint: disable=too-few-public-m
                     not isinstance(results_format, str)
                     or results_format not in self._supported_formats
                 ):
-                    raise DroneException(
-                        "Argument 'format' must be 'junit' or 'xunit'"
-                    )
+                    raise DroneException("Argument 'format' must be 'junit' or 'xunit'")
             parsed_sources.append((path, results_format))
 
         return parsed_sources

@@ -69,7 +69,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         self.assertIn(b"<assembly name='xunit'/>", request.data)
         self.assertEqual(
             mock_urlopen.call_args.kwargs["timeout"],
-            self.module._http_timeout,
+            300,
         )
 
     @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
@@ -93,9 +93,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
             urls,
         )
         payloads = [call.args[0].data for call in mock_urlopen.call_args_list]
-        self.assertTrue(
-            any(b"<assembly name='xunit'/>" in data for data in payloads)
-        )
+        self.assertTrue(any(b"<assembly name='xunit'/>" in data for data in payloads))
         self.assertTrue(any(b"<testsuite name='junit'/>" in data for data in payloads))
 
     @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
@@ -172,9 +170,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
     def test_run_rejects_invalid_repeat(self):
         """Reject non-positive repeat values."""
         with self.assertRaises(DroneException) as context:
-            self.module.run(
-                self.mock_runner, {"sources": ["xunit.xml"], "repeat": 0}
-            )
+            self.module.run(self.mock_runner, {"sources": ["xunit.xml"], "repeat": 0})
 
         self.assertEqual(
             str(context.exception), "Argument 'repeat' must be a positive integer"
