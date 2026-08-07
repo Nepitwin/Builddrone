@@ -138,12 +138,6 @@ The job id is read from the `APPVEYOR_JOB_ID` environment variable.
 }
 ```
 
-Add a build status badge to your README:
-
-```markdown
-[![AppVeyor build](https://ci.appveyor.com/api/projects/status/github/Nepitwin/Builddrone?branch=main&svg=true)](https://ci.appveyor.com/project/github/nepitwin/builddrone)
-```
-
 ### Filesystem
 
 | Module | Arguments | Purpose |
