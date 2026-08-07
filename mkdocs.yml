@@ -1,0 +1,56 @@
+site_name: Builddrone
+site_url: https://nepitwin.github.io/Builddrone/
+repo_url: https://github.com/Nepitwin/Builddrone
+repo_name: Nepitwin/Builddrone
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Blueprint: blueprint.md
+  - CLI: cli.md
+  - Modules:
+      - Overview: modules/index.md
+      - AppVeyor: modules/appveyor.md
+      - Filesystem: modules/filesystem.md
+      - Python: modules/python.md
+      - Robot Framework: modules/robotframework.md
+  - Examples:
+      - Python: examples/python.md
+      - Robot Framework: examples/robotframework.md
+      - AppVeyor: examples/appveyor.md
+  - Framework: framework.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+
+plugins:
+  - search
