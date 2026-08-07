@@ -18,6 +18,7 @@ class TestExecutionEngine(unittest.TestCase):
         """Initialization should register built-in modules."""
         runner_instance = MagicMock()
         instances = {
+            "AppveyorUploadTestsModule": MagicMock(),
             "FilesystemCleanupModule": MagicMock(),
             "FilesystemCopyModule": MagicMock(),
             "PylintModule": MagicMock(),
@@ -31,6 +32,7 @@ class TestExecutionEngine(unittest.TestCase):
 
         with patch.multiple(
             "builddrone.execution_engine",
+            AppveyorUploadTestsModule=DEFAULT,
             FilesystemCleanupModule=DEFAULT,
             FilesystemCopyModule=DEFAULT,
             PylintModule=DEFAULT,
@@ -51,6 +53,9 @@ class TestExecutionEngine(unittest.TestCase):
             ExecutionEngine(modules)
 
         mocks["Runner"].assert_called_once_with()
+        self.assertIs(
+            modules["appveyor.upload.tests"], instances["AppveyorUploadTestsModule"]
+        )
         self.assertIs(
             modules["filesystem.cleanup"], instances["FilesystemCleanupModule"]
         )

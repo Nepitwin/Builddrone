@@ -92,7 +92,47 @@ Its `robotframework.test` step writes `results/output.xml`, and
 `robotframework.rebot` converts that result into reports under
 `results/rebot`.
 
+The AppVeyor example uploads sample JUnit and xUnit XML files:
+
+```bash
+cd example/appveyor
+python -m builddrone upload
+python -m builddrone cleanup
+```
+
+The `upload` stage regenerates `results/xunit.xml` and `results/junit.xml`,
+then posts them to the AppVeyor test-results API. Set `APPVEYOR_JOB_ID` to
+the current AppVeyor job id before running the stage; AppVeyor sets this
+variable automatically in CI.
+
+To run the example on AppVeyor, connect the repository and set **Custom
+configuration .yml file name** to `example/appveyor/appveyor.yml` in the
+project settings. The build installs Builddrone, runs the `upload` stage from
+`example/appveyor/blueprint.json`, and then runs `cleanup`.
+
 ## Built-in modules
+
+### AppVeyor
+
+| Module | Arguments | Purpose |
+| --- | --- | --- |
+| `appveyor.upload.tests` | `sources`, optional `repeat`, optional `timeout` | Upload JUnit/xUnit XML files to the AppVeyor test-results API. |
+
+`sources` is a non-empty list of results file paths (relative to the blueprint directory, or absolute).
+Each file is uploaded in order. `repeat` is the maximum number of upload attempts per file and defaults to `1`.
+`timeout` is the number of seconds to wait between failed attempts and defaults to `10`.
+The job id is read from the `APPVEYOR_JOB_ID` environment variable.
+
+```json
+{
+  "module": "appveyor.upload.tests",
+  "args": {
+    "sources": ["result/xunit.xml", "result/junit.xml"],
+    "repeat": 5,
+    "timeout": 10
+  }
+}
+```
 
 ### Filesystem
 

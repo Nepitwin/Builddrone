@@ -1,0 +1,24 @@
+{
+    "upload": [
+        {
+            "module": "python.run",
+            "args": {
+                "source": "main.py"
+            }
+        },
+        {
+            "module": "appveyor.upload.tests",
+            "args": {
+                "sources": ["results/xunit.xml", "results/junit.xml"]
+            }
+        }
+    ],
+    "cleanup": [
+        {
+            "module": "filesystem.cleanup",
+            "args": {
+                "folders": ["results"]
+            }
+        }
+    ]
+}

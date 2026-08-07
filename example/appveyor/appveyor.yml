@@ -1,0 +1,20 @@
+# AppVeyor configuration for the Builddrone upload example.
+# https://www.appveyor.com/docs/lang/python
+#
+# In AppVeyor project settings, set "Custom configuration .yml file name" to:
+#   example/appveyor/appveyor.yml
+---
+image: Visual Studio 2022
+
+build: off
+
+install:
+  - py --version
+  - py -m pip install --upgrade pip
+  - py -m pip install -e .
+
+test_script:
+  - cd example\appveyor
+  - py main.py
+  - py -m builddrone upload
+  - py -m builddrone cleanup
