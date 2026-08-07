@@ -47,17 +47,6 @@ python -m pip install -e ".[dev]"
 
 Builddrone requires Python 3.8 or newer.
 
-## Examples
-
-| Example | Directory | Stage |
-| --- | --- | --- |
-| Python | `example/python` | `build` |
-| Robot Framework | `example/robotframework` | `test` |
-| AppVeyor | `example/appveyor` | `upload` |
-
-See the [documentation](https://nepitwin.github.io/Builddrone/) for details
-on each example and all available modules.
-
 ## License
 
 MIT License
