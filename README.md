@@ -119,7 +119,9 @@ project settings. The build installs Builddrone, runs the `upload` stage from
 | `appveyor.upload.tests` | `sources`, optional `repeat`, optional `timeout` | Upload JUnit/xUnit XML files to the AppVeyor test-results API. |
 
 `sources` is a non-empty list of results file paths (relative to the blueprint directory, or absolute).
-Each file is uploaded in order. `repeat` is the maximum number of upload attempts per file and defaults to `1`.
+Each file is uploaded in order. The upload endpoint is chosen automatically from the XML root element
+(`<assemblies>` for xUnit, `<testsuite>` or `<testsuites>` for JUnit). You can override this per file
+with an object entry such as `{"source": "results/xunit.xml", "format": "xunit"}`. `repeat` is the maximum number of upload attempts per file and defaults to `1`.
 `timeout` is the number of seconds to wait between failed attempts and defaults to `10`.
 The job id is read from the `APPVEYOR_JOB_ID` environment variable.
 

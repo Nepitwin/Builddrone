@@ -22,7 +22,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         self.results_file = os.path.join(self.temp_dir, "xunit.xml")
         self.second_results_file = os.path.join(self.temp_dir, "junit.xml")
         with open(self.results_file, "w", encoding="utf-8") as file:
-            file.write("<testsuite name='xunit'/>")
+            file.write("<assemblies><assembly name='xunit'/></assemblies>")
         with open(self.second_results_file, "w", encoding="utf-8") as file:
             file.write("<testsuite name='junit'/>")
 
@@ -59,14 +59,14 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         request = mock_urlopen.call_args.args[0]
         self.assertEqual(
             request.full_url,
-            "https://ci.appveyor.com/api/testresults/junit/job-123",
+            "https://ci.appveyor.com/api/testresults/xunit/job-123",
         )
         self.assertEqual(request.get_method(), "POST")
         self.assertIn(
             "multipart/form-data; boundary=", request.get_header("Content-type")
         )
         self.assertIn(b'name="file"', request.data)
-        self.assertIn(b"<testsuite name='xunit'/>", request.data)
+        self.assertIn(b"<assembly name='xunit'/>", request.data)
         self.assertEqual(
             mock_urlopen.call_args.kwargs["timeout"],
             self.module._http_timeout,
@@ -83,8 +83,19 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         )
 
         self.assertEqual(mock_urlopen.call_count, 2)
+        urls = [call.args[0].full_url for call in mock_urlopen.call_args_list]
+        self.assertIn(
+            "https://ci.appveyor.com/api/testresults/xunit/job-123",
+            urls,
+        )
+        self.assertIn(
+            "https://ci.appveyor.com/api/testresults/junit/job-123",
+            urls,
+        )
         payloads = [call.args[0].data for call in mock_urlopen.call_args_list]
-        self.assertTrue(any(b"<testsuite name='xunit'/>" in data for data in payloads))
+        self.assertTrue(
+            any(b"<assembly name='xunit'/>" in data for data in payloads)
+        )
         self.assertTrue(any(b"<testsuite name='junit'/>" in data for data in payloads))
 
     @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
@@ -113,6 +124,49 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         self.assertEqual(
             str(context.exception),
             "Argument 'sources' must contain non-empty strings",
+        )
+
+    def test_run_rejects_invalid_source_format(self):
+        """Reject unsupported explicit result formats."""
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"source": "xunit.xml", "format": "nunit"}]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            "Argument 'format' must be 'junit' or 'xunit'",
+        )
+
+    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
+    def test_run_uses_explicit_format(self, mock_urlopen):
+        """Upload using an explicit results format override."""
+        mock_urlopen.return_value = self._mock_response()
+
+        self.module.run(
+            self.mock_runner,
+            {"sources": [{"source": "junit.xml", "format": "junit"}]},
+        )
+
+        request = mock_urlopen.call_args.args[0]
+        self.assertEqual(
+            request.full_url,
+            "https://ci.appveyor.com/api/testresults/junit/job-123",
+        )
+
+    def test_run_rejects_undetectable_format(self):
+        """Fail when the XML format cannot be detected."""
+        unknown_file = os.path.join(self.temp_dir, "unknown.xml")
+        with open(unknown_file, "w", encoding="utf-8") as file:
+            file.write("<results/>")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(self.mock_runner, {"sources": ["unknown.xml"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Unable to detect AppVeyor test results format for {Path(unknown_file)}",
         )
 
     def test_run_rejects_invalid_repeat(self):
@@ -199,7 +253,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
     def test_run_defaults_to_single_attempt(self, mock_urlopen, mock_sleep):
         """Use a single attempt when repeat is omitted."""
         mock_urlopen.side_effect = HTTPError(
-            "https://ci.appveyor.com/api/testresults/junit/job-123",
+            "https://ci.appveyor.com/api/testresults/xunit/job-123",
             500,
             "Server Error",
             hdrs=None,
