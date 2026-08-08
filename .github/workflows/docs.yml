@@ -59,4 +59,8 @@ jobs:
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
 
       - name: Deploy versioned documentation
-        run: mike deploy --push --update-aliases "${{ steps.version.outputs.version }}" latest
+        run: |
+          mike deploy --push --update-aliases \
+            --alias-type=redirect \
+            "${{ steps.version.outputs.version }}" latest
+          mike set-default latest --push
