@@ -15,6 +15,7 @@ Replace `<stage>` with a top-level key from `blueprint.json`, for example
 | --- | --- |
 | [Python](examples/python.md) | `python -m builddrone build` |
 | [Robot Framework](examples/robotframework.md) | `python -m builddrone test` |
+| [Archiver](examples/archiver.md) | `python -m builddrone archive` |
 | [AppVeyor](examples/appveyor.md) | `python -m builddrone upload` |
 
 Each example directory includes its own `blueprint.json` and a `cleanup`

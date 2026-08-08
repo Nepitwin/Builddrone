@@ -15,6 +15,6 @@ install:
 
 test_script:
   - cd example\appveyor
-  - py main.py
   - py -m builddrone upload
+  - py -m builddrone artifacts
   - py -m builddrone cleanup

@@ -21,6 +21,12 @@
     ],
     "copy": [
         {
+            "module": "python.run",
+            "args": {
+                "source": "main.py"
+            }
+        },
+        {
             "module": "filesystem.copy",
             "args": {
                 "source": "example",

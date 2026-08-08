@@ -13,11 +13,27 @@
             }
         }
     ],
+    "artifacts": [
+        {
+            "module": "archiver",
+            "args": {
+                "filename": "results.zip",
+                "folders": ["results"]
+            }
+        },
+        {
+            "module": "appveyor.upload.artifact",
+            "args": {
+                "files": ["results.zip"]
+            }
+        }
+    ],
     "cleanup": [
         {
             "module": "filesystem.cleanup",
             "args": {
-                "folders": ["results"]
+                "folders": ["results"],
+                "files": ["results.zip"]
             }
         }
     ]

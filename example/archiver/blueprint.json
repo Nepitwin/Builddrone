@@ -1,0 +1,33 @@
+{
+    "archive": [
+        {
+            "module": "python.run",
+            "args": {
+                "source": "main.py"
+            }
+        },
+        {
+            "module": "archiver",
+            "args": {
+                "filename": "result.zip",
+                "folders": ["result"]
+            }
+        },
+        {
+            "module": "archiver",
+            "args": {
+                "filename": "summary.zip",
+                "files": ["result/summary.txt"]
+            }
+        }
+    ],
+    "cleanup": [
+        {
+            "module": "filesystem.cleanup",
+            "args": {
+                "folders": ["result"],
+                "files": ["result.zip", "summary.zip"]
+            }
+        }
+    ]
+}

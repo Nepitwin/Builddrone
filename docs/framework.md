@@ -47,7 +47,9 @@ already present in the constructor dictionary:
 
 | Module name |
 | --- |
+| `appveyor.upload.artifact` |
 | `appveyor.upload.tests` |
+| `archiver` |
 | `filesystem.cleanup` |
 | `filesystem.copy` |
 | `python.build` |

@@ -7,7 +7,8 @@ module is referenced by a dotted name in `blueprint.json`.
 
 | Group | Modules |
 | --- | --- |
-| [AppVeyor](appveyor.md) | `appveyor.upload.tests` |
+| [AppVeyor](appveyor.md) | `appveyor.upload.tests`, `appveyor.upload.artifact` |
+| [Archiver](archiver.md) | `archiver` |
 | [Filesystem](filesystem.md) | `filesystem.copy`, `filesystem.cleanup` |
 | [Python](python.md) | `python.venv`, `python.install`, `python.run`, `python.build`, `python.pylint` |
 | [Robot Framework](robotframework.md) | `robotframework.test`, `robotframework.rebot` |

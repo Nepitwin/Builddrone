@@ -7,7 +7,11 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.module.appveyor.upload_artifact_module import (
+    AppveyorUploadArtifactModule,
+)
 from builddrone.module.appveyor.upload_tests_module import AppveyorUploadTestsModule
+from builddrone.module.archiver_module import ArchiverModule
 from builddrone.module.filesystem.cleanup_module import (
     CleanupModule as FilesystemCleanupModule,
 )
@@ -33,7 +37,11 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         """
         self._modules = modules
         self._config_path = Path("blueprint.json")
+        self._register_module(
+            "appveyor.upload.artifact", AppveyorUploadArtifactModule()
+        )
         self._register_module("appveyor.upload.tests", AppveyorUploadTestsModule())
+        self._register_module("archiver", ArchiverModule())
         self._register_module("filesystem.cleanup", FilesystemCleanupModule())
         self._register_module("filesystem.copy", FilesystemCopyModule())
         self._register_module("python.build", PythonBuildModule())

@@ -48,12 +48,49 @@ The job id is read from the `APPVEYOR_JOB_ID` environment variable.
 }
 ```
 
-### Build status badge
+## `appveyor.upload.artifact`
 
-Add a build status badge to your README:
+Upload build artifacts to AppVeyor using `Push-AppveyorArtifact`.
 
-```markdown
-[![AppVeyor build](https://ci.appveyor.com/api/projects/status/github/Nepitwin/Builddrone?branch=main&svg=true)](https://ci.appveyor.com/project/github/nepitwin/builddrone)
+| Argument | Required | Description |
+| --- | --- | --- |
+| `files` | yes | Non-empty list of artifact file paths |
+
+Each file is uploaded with its basename as the AppVeyor artifact name. This
+module runs on AppVeyor workers where the `Push-AppveyorArtifact` PowerShell
+cmdlet is available.
+
+### Example
+
+```json
+{
+  "module": "appveyor.upload.artifact",
+  "args": {
+    "files": ["results.zip"]
+  }
+}
+```
+
+### Archive and upload failure artifacts
+
+Use two steps in a blueprint stage:
+
+```json
+[
+  {
+    "module": "archiver",
+    "args": {
+      "filename": "results.zip",
+      "folders": ["result"]
+    }
+  },
+  {
+    "module": "appveyor.upload.artifact",
+    "args": {
+      "files": ["results.zip"]
+    }
+  }
+]
 ```
 
 See the [AppVeyor example](../examples/appveyor.md) for a full CI setup.

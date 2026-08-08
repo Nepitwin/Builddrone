@@ -34,12 +34,14 @@ nav:
   - Modules:
       - Overview: modules/index.md
       - AppVeyor: modules/appveyor.md
+      - Archiver: modules/archiver.md
       - Filesystem: modules/filesystem.md
       - Python: modules/python.md
       - Robot Framework: modules/robotframework.md
   - Examples:
       - Python: examples/python.md
       - Robot Framework: examples/robotframework.md
+      - Archiver: examples/archiver.md
       - AppVeyor: examples/appveyor.md
   - Framework: framework.md
 
