@@ -23,6 +23,7 @@ from builddrone.module.python.run_module import PythonRunModule
 from builddrone.module.python.venv_module import PythonVirtualEnvironmentModule
 from builddrone.module.robotframework.rebot_module import RobotframeworkRebotModule
 from builddrone.module.robotframework.test_module import RobotframeworkTestModule
+from builddrone.module.twine.upload_module import TwineUploadModule
 from builddrone.runner import Runner
 
 
@@ -51,6 +52,7 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         self._register_module("python.pylint", PylintModule())
         self._register_module("robotframework.test", RobotframeworkTestModule())
         self._register_module("robotframework.rebot", RobotframeworkRebotModule())
+        self._register_module("twine.upload", TwineUploadModule())
         self._runner = Runner()
 
     def run(self, stage: str) -> None:

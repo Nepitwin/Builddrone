@@ -1,5 +1,8 @@
 """Tests for the AppVeyor upload artifact module."""
 
+# These tests share file-list validation patterns with other upload modules.
+# pylint: disable=duplicate-code
+
 import os
 import shutil
 import tempfile

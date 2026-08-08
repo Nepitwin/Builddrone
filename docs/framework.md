@@ -59,6 +59,7 @@ already present in the constructor dictionary:
 | `python.pylint` |
 | `robotframework.test` |
 | `robotframework.rebot` |
+| `twine.upload` |
 
 Pass a module with the same name in the constructor dictionary to override a
 built-in implementation.

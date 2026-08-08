@@ -30,6 +30,7 @@ class TestExecutionEngine(unittest.TestCase):
             "PythonInstallModule": MagicMock(),
             "PythonBuildModule": MagicMock(),
             "PythonVirtualEnvironmentModule": MagicMock(),
+            "TwineUploadModule": MagicMock(),
         }
 
         with patch.multiple(
@@ -46,6 +47,7 @@ class TestExecutionEngine(unittest.TestCase):
             PythonInstallModule=DEFAULT,
             PythonBuildModule=DEFAULT,
             PythonVirtualEnvironmentModule=DEFAULT,
+            TwineUploadModule=DEFAULT,
             Runner=DEFAULT,
         ) as mocks:
             for name, instance in instances.items():
@@ -82,6 +84,7 @@ class TestExecutionEngine(unittest.TestCase):
         self.assertIs(
             modules["robotframework.rebot"], instances["RobotframeworkRebotModule"]
         )
+        self.assertIs(modules["twine.upload"], instances["TwineUploadModule"])
         self.assertIn("custom", modules)
 
     @patch("builddrone.execution_engine.Runner")

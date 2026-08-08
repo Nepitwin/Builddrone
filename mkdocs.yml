@@ -38,6 +38,7 @@ nav:
       - Filesystem: modules/filesystem.md
       - Python: modules/python.md
       - Robot Framework: modules/robotframework.md
+      - Twine: modules/twine.md
   - Examples:
       - Python: examples/python.md
       - Robot Framework: examples/robotframework.md
