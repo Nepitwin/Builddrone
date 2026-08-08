@@ -28,7 +28,8 @@ dev = [
     "pylint"
 ]
 docs = [
-    "mkdocs-material"
+    "mkdocs-material",
+    "mike"
 ]
 
 

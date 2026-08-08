@@ -2,14 +2,16 @@ name: Docs
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to deploy
+        required: true
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -19,34 +21,42 @@ jobs:
   deploy:
     name: Deploy documentation
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: Install MkDocs
+      - name: Install documentation dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mkdocs-material
+          pip install -e ".[docs]"
 
-      - name: Build site
-        run: mkdocs build
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: site
+          if [ -z "${VERSION}" ]; then
+            echo "No release version provided." >&2
+            exit 1
+          fi
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Deploy versioned documentation
+        run: mike deploy --push --update-aliases "${{ steps.version.outputs.version }}" latest

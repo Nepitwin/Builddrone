@@ -27,6 +27,10 @@ Full documentation is published on GitHub Pages:
 
 **https://nepitwin.github.io/Builddrone/**
 
+Each release tag gets its own documentation version. Use the version selector
+on the site to read docs for a specific release; `latest` always points at the
+most recent release.
+
 Topics covered there include installation, blueprint format, CLI usage, all
 built-in modules, examples, and custom module development.
 
