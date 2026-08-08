@@ -20,7 +20,7 @@ Builddrone requires Python 3.8 or newer.
 Published documentation is deployed to GitHub Pages for each release tag. Use
 the version selector on the site to browse a specific release:
 
-**https://nepitwin.github.io/Builddrone/**
+**https://nepitwin.github.io/Builddrone/latest/**
 
 The `latest` alias always points at the most recently published release.
 

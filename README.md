@@ -6,7 +6,7 @@
       <img src="https://raw.githubusercontent.com/Nepitwin/Builddrone/main/logo.png" alt="Builddrone" width="200" height="200">
     </td>
     <td><strong>Project</strong></td>
-    <td><a href="https://github.com/Nepitwin/Builddrone">GitHub</a> · <a href="https://pypi.org/project/builddrone/">PyPI</a> · <a href="https://nepitwin.github.io/Builddrone/">Documentation</a></td>
+    <td><a href="https://github.com/Nepitwin/Builddrone">GitHub</a> · <a href="https://pypi.org/project/builddrone/">PyPI</a> · <a href="https://nepitwin.github.io/Builddrone/latest/">Documentation</a></td>
   </tr>
   <tr>
     <td><strong>Environment</strong></td>
@@ -25,7 +25,7 @@ stage executes an ordered list of registered modules.
 
 Full documentation is published on GitHub Pages:
 
-**https://nepitwin.github.io/Builddrone/**
+**https://nepitwin.github.io/Builddrone/latest/**
 
 Each release tag gets its own documentation version. Use the version selector
 on the site to read docs for a specific release; `latest` always points at the

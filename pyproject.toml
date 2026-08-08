@@ -13,7 +13,7 @@ requires-python = ">=3.8"
 
 [project.urls]
 Homepage = "https://github.com/Nepitwin/Builddrone"
-Documentation = "https://nepitwin.github.io/Builddrone/"
+Documentation = "https://nepitwin.github.io/Builddrone/latest/"
 Repository = "https://github.com/Nepitwin/Builddrone"
 PyPI = "https://pypi.org/project/builddrone/"
 
