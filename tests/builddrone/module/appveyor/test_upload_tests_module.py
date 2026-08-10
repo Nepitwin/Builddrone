@@ -53,7 +53,10 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         """Upload relative results paths successfully."""
         mock_urlopen.return_value = self._mock_response()
 
-        self.module.run(self.mock_runner, {"sources": ["xunit.xml"]})
+        self.module.run(
+            self.mock_runner,
+            {"sources": [{"file": "xunit.xml", "type": "xunit"}]},
+        )
 
         mock_urlopen.assert_called_once()
         request = mock_urlopen.call_args.args[0]
@@ -79,7 +82,12 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
 
         self.module.run(
             self.mock_runner,
-            {"sources": ["xunit.xml", "junit.xml"]},
+            {
+                "sources": [
+                    {"file": "xunit.xml", "type": "xunit"},
+                    {"file": "junit.xml", "type": "junit"},
+                ]
+            },
         )
 
         self.assertEqual(mock_urlopen.call_count, 2)
@@ -101,7 +109,10 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         """Upload absolute results paths successfully."""
         mock_urlopen.return_value = self._mock_response()
 
-        self.module.run(self.mock_runner, {"sources": [self.results_file]})
+        self.module.run(
+            self.mock_runner,
+            {"sources": [{"file": self.results_file, "type": "xunit"}]},
+        )
 
         mock_urlopen.assert_called_once()
 
@@ -114,63 +125,78 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
             str(context.exception), "Argument 'sources' must be a non-empty list"
         )
 
-    def test_run_rejects_invalid_source_entries(self):
-        """Reject non-string or blank source entries."""
+    def test_run_rejects_string_source_entries(self):
+        """Reject plain string source entries."""
         with self.assertRaises(DroneException) as context:
-            self.module.run(self.mock_runner, {"sources": ["xunit.xml", ""]})
+            self.module.run(self.mock_runner, {"sources": ["xunit.xml"]})
 
         self.assertEqual(
             str(context.exception),
-            "Argument 'sources' must contain non-empty strings",
+            "Argument 'sources' entries must be objects with 'file' and 'type'",
         )
 
-    def test_run_rejects_invalid_source_format(self):
-        """Reject unsupported explicit result formats."""
+    def test_run_rejects_missing_file(self):
+        """Reject source objects without a file path."""
         with self.assertRaises(DroneException) as context:
             self.module.run(
                 self.mock_runner,
-                {"sources": [{"source": "xunit.xml", "format": "nunit"}]},
+                {"sources": [{"type": "xunit"}]},
             )
 
         self.assertEqual(
             str(context.exception),
-            "Argument 'format' must be 'junit' or 'xunit'",
+            "Argument 'sources' object entries require a non-empty 'file'",
         )
 
-    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
-    def test_run_uses_explicit_format(self, mock_urlopen):
-        """Upload using an explicit results format override."""
-        mock_urlopen.return_value = self._mock_response()
-
-        self.module.run(
-            self.mock_runner,
-            {"sources": [{"source": "junit.xml", "format": "junit"}]},
-        )
-
-        request = mock_urlopen.call_args.args[0]
-        self.assertEqual(
-            request.full_url,
-            "https://ci.appveyor.com/api/testresults/junit/job-123",
-        )
-
-    def test_run_rejects_undetectable_format(self):
-        """Fail when the XML format cannot be detected."""
-        unknown_file = os.path.join(self.temp_dir, "unknown.xml")
-        with open(unknown_file, "w", encoding="utf-8") as file:
-            file.write("<results/>")
-
+    def test_run_rejects_blank_file(self):
+        """Reject source objects with blank file paths."""
         with self.assertRaises(DroneException) as context:
-            self.module.run(self.mock_runner, {"sources": ["unknown.xml"]})
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"file": "  ", "type": "xunit"}]},
+            )
 
         self.assertEqual(
             str(context.exception),
-            f"Unable to detect AppVeyor test results format for {Path(unknown_file)}",
+            "Argument 'sources' object entries require a non-empty 'file'",
+        )
+
+    def test_run_rejects_missing_type(self):
+        """Reject source objects without a type."""
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"file": "xunit.xml"}]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            "Argument 'type' must be 'junit' or 'xunit'",
+        )
+
+    def test_run_rejects_invalid_type(self):
+        """Reject unsupported result types."""
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"file": "xunit.xml", "type": "nunit"}]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            "Argument 'type' must be 'junit' or 'xunit'",
         )
 
     def test_run_rejects_invalid_repeat(self):
         """Reject non-positive repeat values."""
         with self.assertRaises(DroneException) as context:
-            self.module.run(self.mock_runner, {"sources": ["xunit.xml"], "repeat": 0})
+            self.module.run(
+                self.mock_runner,
+                {
+                    "sources": [{"file": "xunit.xml", "type": "xunit"}],
+                    "repeat": 0,
+                },
+            )
 
         self.assertEqual(
             str(context.exception), "Argument 'repeat' must be a positive integer"
@@ -180,7 +206,11 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         """Reject non-positive timeout values."""
         with self.assertRaises(DroneException) as context:
             self.module.run(
-                self.mock_runner, {"sources": ["xunit.xml"], "timeout": True}
+                self.mock_runner,
+                {
+                    "sources": [{"file": "xunit.xml", "type": "xunit"}],
+                    "timeout": True,
+                },
             )
 
         self.assertEqual(
@@ -191,7 +221,10 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         """Fail when APPVEYOR_JOB_ID is unset."""
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(DroneException) as context:
-                self.module.run(self.mock_runner, {"sources": ["xunit.xml"]})
+                self.module.run(
+                    self.mock_runner,
+                    {"sources": [{"file": "xunit.xml", "type": "xunit"}]},
+                )
 
         self.assertEqual(
             str(context.exception),
@@ -201,7 +234,10 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
     def test_run_requires_existing_file(self):
         """Fail when a results file does not exist."""
         with self.assertRaises(DroneException) as context:
-            self.module.run(self.mock_runner, {"sources": ["missing.xml"]})
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"file": "missing.xml", "type": "xunit"}]},
+            )
 
         self.assertEqual(
             str(context.exception),
@@ -219,7 +255,11 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
 
         self.module.run(
             self.mock_runner,
-            {"sources": ["xunit.xml"], "repeat": 3, "timeout": 7},
+            {
+                "sources": [{"file": "xunit.xml", "type": "xunit"}],
+                "repeat": 3,
+                "timeout": 7,
+            },
         )
 
         self.assertEqual(mock_urlopen.call_count, 2)
@@ -234,7 +274,11 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         with self.assertRaises(DroneException) as context:
             self.module.run(
                 self.mock_runner,
-                {"sources": ["xunit.xml"], "repeat": 2, "timeout": 4},
+                {
+                    "sources": [{"file": "xunit.xml", "type": "xunit"}],
+                    "repeat": 2,
+                    "timeout": 4,
+                },
             )
 
         self.assertEqual(mock_urlopen.call_count, 2)
@@ -257,7 +301,10 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         )
 
         with self.assertRaises(DroneException):
-            self.module.run(self.mock_runner, {"sources": ["xunit.xml"]})
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"file": "xunit.xml", "type": "xunit"}]},
+            )
 
         self.assertEqual(mock_urlopen.call_count, 1)
         mock_sleep.assert_not_called()

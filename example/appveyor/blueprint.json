@@ -9,7 +9,10 @@
         {
             "module": "appveyor.upload.tests",
             "args": {
-                "sources": ["results/xunit.xml", "results/junit.xml"]
+                "sources": [
+                    {"file": "results/xunit.xml", "type": "xunit"},
+                    {"file": "results/junit.xml", "type": "junit"}
+                ]
             }
         }
     ],

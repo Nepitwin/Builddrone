@@ -19,13 +19,13 @@ class AppveyorUploadTestsModule(BaseModule):  # pylint: disable=too-few-public-m
     """Upload JUnit/xUnit XML results files to AppVeyor.
 
     Blueprint configuration arguments:
-        "sources": ["Paths to the XML results files", or objects with
-            "source" and optional "format" ("junit" or "xunit")]
+        "sources": "Non-empty list of objects with 'file' and 'type'
+            ('junit' or 'xunit')"
         "repeat": "Max upload attempts per file (default: 1)"
         "timeout": "Seconds to wait between failed attempts (default: 10)"
     """
 
-    _supported_formats = frozenset({"junit", "xunit"})
+    _supported_types = frozenset({"junit", "xunit"})
 
     def __init__(self) -> None:
         self._upload_url = (
@@ -43,12 +43,10 @@ class AppveyorUploadTestsModule(BaseModule):  # pylint: disable=too-few-public-m
 
         base_path = Path(runner.get_base_path())
 
-        for source, results_format in sources:
-            source_path = self._resolve_source(source, base_path)
-            if results_format is None:
-                results_format = self._detect_format(source_path)
+        for file_path, results_type in sources:
+            source_path = self._resolve_source(file_path, base_path)
             upload_url = self._upload_url.format(
-                results_type=results_format,
+                results_type=results_type,
                 job_id=job_id,
             )
             self._upload_with_retry(runner, source_path, upload_url, repeat, timeout)
@@ -95,53 +93,34 @@ class AppveyorUploadTestsModule(BaseModule):  # pylint: disable=too-few-public-m
             f"for {source_path}: {last_error}"
         ) from last_error
 
-    def _require_sources(self, args: dict) -> list[tuple[str, str | None]]:
+    def _require_sources(self, args: dict) -> list[tuple[str, str]]:
         sources = args.get("sources")
         if not isinstance(sources, list) or not sources:
             raise DroneException("Argument 'sources' must be a non-empty list")
 
-        parsed_sources: list[tuple[str, str | None]] = []
+        parsed_sources: list[tuple[str, str]] = []
         for source in sources:
-            if isinstance(source, str):
-                if not source.strip():
-                    raise DroneException(
-                        "Argument 'sources' must contain non-empty strings"
-                    )
-                parsed_sources.append((source, None))
-                continue
-
             if not isinstance(source, dict):
                 raise DroneException(
-                    "Argument 'sources' entries must be strings or objects"
+                    "Argument 'sources' entries must be objects with 'file' and 'type'"
                 )
 
-            path = source.get("source")
-            if not isinstance(path, str) or not path.strip():
+            file_path = source.get("file")
+            if not isinstance(file_path, str) or not file_path.strip():
                 raise DroneException(
-                    "Argument 'sources' object entries require a non-empty 'source'"
+                    "Argument 'sources' object entries require a non-empty 'file'"
                 )
 
-            results_format = source.get("format")
-            if results_format is not None:
-                if (
-                    not isinstance(results_format, str)
-                    or results_format not in self._supported_formats
-                ):
-                    raise DroneException("Argument 'format' must be 'junit' or 'xunit'")
-            parsed_sources.append((path, results_format))
+            results_type = source.get("type")
+            if (
+                not isinstance(results_type, str)
+                or results_type not in self._supported_types
+            ):
+                raise DroneException("Argument 'type' must be 'junit' or 'xunit'")
+
+            parsed_sources.append((file_path, results_type))
 
         return parsed_sources
-
-    @staticmethod
-    def _detect_format(source_path: Path) -> str:
-        snippet = source_path.read_text(encoding="utf-8")[:2048].lstrip("\ufeff")
-        if "<assemblies" in snippet:
-            return "xunit"
-        if "<testsuites" in snippet or "<testsuite" in snippet:
-            return "junit"
-        raise DroneException(
-            f"Unable to detect AppVeyor test results format for {source_path}"
-        )
 
     @staticmethod
     def _resolve_source(src: str, base_path: Path) -> Path:
