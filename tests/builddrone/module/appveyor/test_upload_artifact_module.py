@@ -49,8 +49,8 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
         self.assertEqual(command[0], "powershell")
         self.assertEqual(command[1], "-NoProfile")
         self.assertEqual(command[2], "-Command")
-        self.assertIn(str(artifact_path), command[3])
-        self.assertIn('-FileName "results.zip"', command[3])
+        self.assertIn(f"'{artifact_path}'", command[3])
+        self.assertIn("-FileName 'results.zip'", command[3])
         self.assertEqual(
             mock_run.call_args.kwargs["cwd"],
             self.temp_dir,
@@ -76,6 +76,36 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
         self.module.run(self.mock_runner, {"files": [self.artifact_file]})
 
         mock_run.assert_called_once()
+
+    @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
+    def test_run_escapes_powershell_metacharacters(self, mock_run):
+        """Quote artifact paths so they cannot inject PowerShell commands."""
+        malicious_name = "evil'$()whoami'.zip"
+        malicious_path = os.path.join(self.temp_dir, malicious_name)
+        with open(malicious_path, "wb") as file:
+            file.write(b"x")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        self.module.run(self.mock_runner, {"files": [malicious_name]})
+
+        command = mock_run.call_args.args[0][3]
+        self.assertIn("-FileName 'evil''$()whoami''.zip'", command)
+        self.assertNotRegex(command, r'-Path "[^"]*"')
+        self.assertIn("evil''$()whoami''.zip'", command)
+
+    def test_ps_single_quoted_escapes_injection_payloads(self):
+        """Single-quote PowerShell literals for metacharacter-heavy values."""
+        cases = [
+            ('evil"; Write-Host injected; "', """'evil"; Write-Host injected; "'"""),
+            ("evil'$()whoami'", "'evil''$()whoami'''"),
+            ("path'with'quotes", "'path''with''quotes'"),
+        ]
+        for value, expected in cases:
+            with self.subTest(value=value):
+                self.assertEqual(
+                    AppveyorUploadArtifactModule._ps_single_quoted(value),
+                    expected,
+                )
 
     def test_run_requires_files(self):
         """Reject missing or empty files."""

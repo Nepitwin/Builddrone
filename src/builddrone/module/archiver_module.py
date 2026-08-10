@@ -93,9 +93,12 @@ class ArchiverModule(BaseModule):  # pylint: disable=too-few-public-methods
         arc_prefix = self._arcname(folder, folder_path, base_path)
         runner.logger.info("Adding folder to archive: %s", folder_path)
 
-        for root, _, file_names in os.walk(folder_path):
+        for root, _, file_names in os.walk(folder_path, followlinks=False):
             for file_name in file_names:
                 source_file = Path(root) / file_name
+                if source_file.is_symlink():
+                    runner.logger.warning("Skipping symlink: %s", source_file)
+                    continue
                 relative_file = source_file.relative_to(folder_path)
                 arcname = str(Path(arc_prefix) / relative_file).replace("\\", "/")
                 archive.write(source_file, arcname)
@@ -111,6 +114,9 @@ class ArchiverModule(BaseModule):  # pylint: disable=too-few-public-methods
             raise DroneException("Argument 'files' must contain non-empty strings")
 
         source_path = self._resolve_path(file_path, base_path)
+        if source_path.is_symlink():
+            runner.logger.warning("Skipping symlink: %s", source_path)
+            return
         if not source_path.is_file():
             raise DroneException(f"File not found: {source_path}")
 

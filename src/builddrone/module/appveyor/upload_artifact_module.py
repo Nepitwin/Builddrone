@@ -51,11 +51,20 @@ class AppveyorUploadArtifactModule(
         return artifact_path
 
     @staticmethod
+    def _ps_single_quoted(value: str) -> str:
+        """Return a PowerShell single-quoted literal safe for -Command strings."""
+        return "'" + value.replace("'", "''") + "'"
+
+    @staticmethod
     def _upload_artifact(runner: Runner, artifact_path: Path) -> None:
         artifact_name = artifact_path.name
+        path_literal = AppveyorUploadArtifactModule._ps_single_quoted(
+            str(artifact_path)
+        )
+        name_literal = AppveyorUploadArtifactModule._ps_single_quoted(artifact_name)
         command = (
-            f'Push-AppveyorArtifact -Path "{artifact_path}" '
-            f'-FileName "{artifact_name}"'
+            f"Push-AppveyorArtifact -Path {path_literal} "
+            f"-FileName {name_literal}"
         )
         runner.logger.info("Uploading AppVeyor artifact: %s", artifact_path)
 

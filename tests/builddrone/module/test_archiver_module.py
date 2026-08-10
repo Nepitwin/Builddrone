@@ -6,7 +6,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
 from builddrone.module.archiver_module import ArchiverModule
@@ -168,6 +168,104 @@ class TestArchiverModule(unittest.TestCase):
         self.assertEqual(
             str(context.exception),
             f"Folder not found: {Path(self.temp_dir) / 'missing'}",
+        )
+
+    @patch("builddrone.module.archiver_module.Path.is_symlink", return_value=True)
+    def test_run_skips_symlinked_file_when_symlinks_unavailable(
+        self, _mock_is_symlink
+    ):
+        """Skip symlinked files instead of packing their targets."""
+        archive_path = os.path.join(self.temp_dir, "results.zip")
+        self.module.run(
+            self.mock_runner,
+            {"filename": "results.zip", "files": ["result/root.txt"]},
+        )
+
+        with zipfile.ZipFile(archive_path) as archive:
+            self.assertEqual(archive.namelist(), [])
+
+        self.mock_runner.logger.warning.assert_called_once()
+
+    def test_run_skips_symlinked_files_in_folder_when_symlinks_unavailable(self):
+        """Skip symlinked files encountered while archiving folders."""
+        link_path = Path(self.result_dir) / "linked.txt"
+        link_path.write_text("linked", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == link_path:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            self.module.run(
+                self.mock_runner,
+                {"filename": "results.zip", "folders": ["result"]},
+            )
+
+        with zipfile.ZipFile(os.path.join(self.temp_dir, "results.zip")) as archive:
+            self.assertEqual(
+                sorted(archive.namelist()),
+                ["result/nested/nested.txt", "result/root.txt"],
+            )
+
+        self.mock_runner.logger.warning.assert_called_once_with(
+            "Skipping symlink: %s",
+            link_path,
+        )
+
+    def test_run_skips_symlinked_file(self):
+        """Skip symlinked files instead of packing their targets."""
+        secret_file = os.path.join(self.temp_dir, "secret.txt")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.result_dir, "linked.txt")
+        try:
+            os.symlink(secret_file, link_path)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        archive_path = os.path.join(self.temp_dir, "results.zip")
+        self.module.run(
+            self.mock_runner,
+            {"filename": "results.zip", "files": ["result/linked.txt"]},
+        )
+
+        with zipfile.ZipFile(archive_path) as archive:
+            self.assertEqual(archive.namelist(), [])
+
+        self.mock_runner.logger.warning.assert_called_once_with(
+            "Skipping symlink: %s",
+            Path(link_path),
+        )
+
+    def test_run_skips_symlinked_files_in_folder(self):
+        """Skip symlinked files encountered while archiving folders."""
+        secret_file = os.path.join(self.temp_dir, "secret.txt")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.result_dir, "linked.txt")
+        try:
+            os.symlink(secret_file, link_path)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        self.module.run(
+            self.mock_runner,
+            {"filename": "results.zip", "folders": ["result"]},
+        )
+
+        with zipfile.ZipFile(os.path.join(self.temp_dir, "results.zip")) as archive:
+            self.assertEqual(
+                sorted(archive.namelist()),
+                ["result/nested/nested.txt", "result/root.txt"],
+            )
+
+        self.mock_runner.logger.warning.assert_called_once_with(
+            "Skipping symlink: %s",
+            Path(link_path),
         )
 
     def test_run_rejects_missing_file(self):
