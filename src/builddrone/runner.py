@@ -10,13 +10,24 @@ from pathlib import Path
 
 from builddrone.drone_exception import DroneException
 
+_LOG_FORMAT = "%(levelname)s:%(name)s:%(message)s"
+
+
+def configure_logging() -> None:
+    """Configure builddrone logging for CI-friendly stdout output."""
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stdout,
+        format=_LOG_FORMAT,
+    )
+
 
 class Runner:
     """Execute build commands using a configured Python interpreter."""
 
     def __init__(self):
         """Initialize the runner."""
-        logging.basicConfig(level=logging.INFO)
+        configure_logging()
         self.logger = logging.getLogger(__name__)
 
         self._python_path = sys.executable

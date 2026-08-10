@@ -70,8 +70,10 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         if not isinstance(steps, list):
             raise DroneException(f"Stage '{stage}' must be a list of steps")
 
+        self._runner.logger.info("Running stage: %s", stage)
         for step in steps:
             self._execute_step(step)
+        self._runner.logger.info("Completed stage: %s", stage)
 
     def _execute_step(self, step: dict) -> None:
         """Execute a single build step."""
@@ -89,7 +91,13 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         if module is None:
             raise DroneException(f"Unknown module: {module_name}")
 
-        module.run(self._runner, args)
+        self._runner.logger.info("Running module: %s", module_name)
+        try:
+            module.run(self._runner, args)
+        except DroneException:
+            self._runner.logger.error("Module failed: %s", module_name)
+            raise
+        self._runner.logger.info("Completed module: %s", module_name)
 
     def _register_module(self, name: str, module: BaseModule) -> None:
         """Register a single build module."""

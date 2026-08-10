@@ -40,7 +40,11 @@ class TestBuilddroneCli(unittest.TestCase):
         )
         mock_engine.return_value = engine_instance
 
-        with self.assertRaises(SystemExit) as context:
-            main(["copy"])
+        with patch("builddrone.cli._log_drone_exception") as mock_log_error:
+            exit_code = main(["copy"])
 
-        self.assertEqual(context.exception.code, 1)
+        self.assertEqual(exit_code, 1)
+        mock_log_error.assert_called_once()
+        logged_prog, logged_exc = mock_log_error.call_args.args
+        self.assertEqual(logged_prog, "python -m builddrone")
+        self.assertEqual(str(logged_exc), "Stage 'copy' not found in config")
