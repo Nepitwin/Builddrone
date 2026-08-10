@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.runner import Runner, configure_logging, _LOG_FORMAT
+from builddrone.runner import Runner, configure_logging
 
 
 class TestRunner(unittest.TestCase):
@@ -60,7 +60,19 @@ class TestRunner(unittest.TestCase):
         handler = root_logger.handlers[0]
         self.assertIsInstance(handler, logging.StreamHandler)
         self.assertIs(handler.stream, sys.stdout)
-        self.assertEqual(handler.formatter._fmt, _LOG_FORMAT)
+        record = logging.LogRecord(
+            name="builddrone.runner",
+            level=logging.INFO,
+            pathname=__file__,
+            lineno=1,
+            msg="test message",
+            args=(),
+            exc_info=None,
+        )
+        self.assertEqual(
+            handler.formatter.format(record),
+            "INFO:builddrone.runner:test message",
+        )
 
     @patch("builddrone.runner.os.path.isfile")
     @patch("builddrone.runner.os.path.exists")
