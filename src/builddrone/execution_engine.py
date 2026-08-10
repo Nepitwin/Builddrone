@@ -11,7 +11,7 @@ from builddrone.module.appveyor.upload_artifact_module import (
     AppveyorUploadArtifactModule,
 )
 from builddrone.module.appveyor.upload_tests_module import AppveyorUploadTestsModule
-from builddrone.module.archiver_module import ArchiverModule
+from builddrone.module.archiver.archiver_module import ArchiverModule
 from builddrone.module.filesystem.cleanup_module import (
     CleanupModule as FilesystemCleanupModule,
 )

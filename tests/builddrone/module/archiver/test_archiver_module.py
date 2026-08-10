@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.archiver_module import ArchiverModule
+from builddrone.module.archiver.archiver_module import ArchiverModule
 from builddrone.runner import Runner
 
 
@@ -170,7 +170,10 @@ class TestArchiverModule(unittest.TestCase):
             f"Folder not found: {Path(self.temp_dir) / 'missing'}",
         )
 
-    @patch("builddrone.module.archiver_module.Path.is_symlink", return_value=True)
+    @patch(
+        "builddrone.module.archiver.archiver_module.Path.is_symlink",
+        return_value=True,
+    )
     def test_run_skips_symlinked_file_when_symlinks_unavailable(self, _mock_is_symlink):
         """Skip symlinked files instead of packing their targets."""
         archive_path = os.path.join(self.temp_dir, "results.zip")
