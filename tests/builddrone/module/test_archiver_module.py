@@ -171,9 +171,7 @@ class TestArchiverModule(unittest.TestCase):
         )
 
     @patch("builddrone.module.archiver_module.Path.is_symlink", return_value=True)
-    def test_run_skips_symlinked_file_when_symlinks_unavailable(
-        self, _mock_is_symlink
-    ):
+    def test_run_skips_symlinked_file_when_symlinks_unavailable(self, _mock_is_symlink):
         """Skip symlinked files instead of packing their targets."""
         archive_path = os.path.join(self.temp_dir, "results.zip")
         self.module.run(

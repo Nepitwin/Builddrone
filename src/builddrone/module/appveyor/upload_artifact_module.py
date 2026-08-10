@@ -63,8 +63,7 @@ class AppveyorUploadArtifactModule(
         )
         name_literal = AppveyorUploadArtifactModule._ps_single_quoted(artifact_name)
         command = (
-            f"Push-AppveyorArtifact -Path {path_literal} "
-            f"-FileName {name_literal}"
+            f"Push-AppveyorArtifact -Path {path_literal} " f"-FileName {name_literal}"
         )
         runner.logger.info("Uploading AppVeyor artifact: %s", artifact_path)
 

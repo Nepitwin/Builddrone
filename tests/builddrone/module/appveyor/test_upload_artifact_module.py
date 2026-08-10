@@ -103,7 +103,9 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
         for value, expected in cases:
             with self.subTest(value=value):
                 self.assertEqual(
-                    AppveyorUploadArtifactModule._ps_single_quoted(value),
+                    AppveyorUploadArtifactModule._ps_single_quoted(  # pylint: disable=protected-access
+                        value
+                    ),
                     expected,
                 )
 
