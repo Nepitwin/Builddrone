@@ -1,9 +1,13 @@
 """Tests for the filesystem copy module."""
 
+# These tests share symlink setup patterns with the archiver module tests.
+# pylint: disable=duplicate-code
+
 import os
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
@@ -175,4 +179,81 @@ class TestFilesystemCopyModule(unittest.TestCase):
         )
         self.mock_runner.logger.error.assert_called_with(
             f"Error copying file {attempted_source} : Permission denied"
+        )
+
+    @patch(
+        "builddrone.module.filesystem.copy_module.Path.is_symlink",
+        return_value=True,
+    )
+    def test_run_skips_symlinked_file_when_symlinks_unavailable(self, _mock_is_symlink):
+        """Skip symlinked files instead of copying their targets."""
+        module = FilesystemCopyModule()
+
+        module.run(
+            self.mock_runner,
+            {
+                "source": self.source_dir,
+                "destination": self.destination_dir,
+            },
+        )
+
+        self.assertFalse(os.path.exists(os.path.join(self.destination_dir, "root.txt")))
+        self.mock_runner.logger.warning.assert_called()
+
+    def test_run_skips_symlinked_file(self):
+        """Skip symlinked files instead of copying their targets."""
+        secret_file = os.path.join(self.temp_dir, "secret.txt")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.source_dir, "linked.txt")
+        try:
+            os.symlink(secret_file, link_path)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        module = FilesystemCopyModule()
+        module.run(
+            self.mock_runner,
+            {
+                "source": self.source_dir,
+                "destination": self.destination_dir,
+            },
+        )
+
+        destination_link = os.path.join(self.destination_dir, "linked.txt")
+        self.assertFalse(os.path.exists(destination_link))
+        self.mock_runner.logger.warning.assert_called_once_with(
+            "Skipping symlink: %s",
+            Path(link_path),
+        )
+
+    def test_run_skips_symlinked_files_in_folder(self):
+        """Skip symlinked files encountered while copying folders."""
+        secret_file = os.path.join(self.temp_dir, "secret.txt")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.nested_dir, "linked.txt")
+        try:
+            os.symlink(secret_file, link_path)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        module = FilesystemCopyModule()
+        module.run(
+            self.mock_runner,
+            {
+                "source": self.source_dir,
+                "destination": self.destination_dir,
+            },
+        )
+
+        self.assertTrue(os.path.isfile(os.path.join(self.destination_dir, "root.txt")))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.destination_dir, "nested", "linked.txt"))
+        )
+        self.mock_runner.logger.warning.assert_called_once_with(
+            "Skipping symlink: %s",
+            Path(link_path),
         )

@@ -63,7 +63,7 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
 
         os.makedirs(destination_path, exist_ok=True)
 
-        for root, _, files in os.walk(source_path):
+        for root, _, files in os.walk(source_path, followlinks=False):
             relative_root = os.path.relpath(root, source_path)
             target_root = (
                 destination_path
@@ -78,9 +78,15 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
                 ):
                     continue
 
-                source_file = os.path.join(root, file_name)
+                source_file = Path(root) / file_name
+                if source_file.is_symlink():
+                    runner.logger.warning("Skipping symlink: %s", source_file)
+                    continue
+
                 destination_file = os.path.join(target_root, file_name)
-                FilesystemCopyModule._copy_file(runner, source_file, destination_file)
+                FilesystemCopyModule._copy_file(
+                    runner, str(source_file), destination_file
+                )
 
     @staticmethod
     def _copy_file(runner: Runner, source_file: str, destination_file: str) -> None:

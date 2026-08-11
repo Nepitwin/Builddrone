@@ -128,6 +128,10 @@ class AppveyorUploadTestsModule(BaseModule):  # pylint: disable=too-few-public-m
         if not os.path.isabs(src):
             source_path = base_path / source_path
 
+        if source_path.is_symlink():
+            raise DroneException(
+                f"Test results file must not be a symlink: {source_path}"
+            )
         if not source_path.is_file():
             raise DroneException(f"Test results file not found: {source_path}")
         return source_path

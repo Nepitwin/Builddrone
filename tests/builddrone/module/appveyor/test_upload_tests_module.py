@@ -244,6 +244,29 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
             f"Test results file not found: {Path(self.temp_dir) / 'missing.xml'}",
         )
 
+    def test_run_rejects_symlink(self):
+        """Reject symlinked results files instead of uploading their targets."""
+        secret_file = os.path.join(self.temp_dir, "secret.txt")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.temp_dir, "linked.xml")
+        try:
+            os.symlink(secret_file, link_path)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"file": "linked.xml", "type": "xunit"}]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Test results file must not be a symlink: {Path(link_path)}",
+        )
+
     @patch("builddrone.module.appveyor.upload_tests_module.time.sleep")
     @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
     def test_run_retries_then_succeeds(self, mock_urlopen, mock_sleep):

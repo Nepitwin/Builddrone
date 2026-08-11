@@ -83,9 +83,15 @@ class TwineUploadModule(BaseModule):  # pylint: disable=too-few-public-methods
         if not os.path.isabs(pattern):
             search_pattern = str(base_path / pattern)
 
-        matched_files = [
-            Path(match) for match in glob.glob(search_pattern) if Path(match).is_file()
-        ]
+        matched_files: list[Path] = []
+        for match in glob.glob(search_pattern):
+            matched_path = Path(match)
+            if matched_path.is_symlink():
+                raise DroneException(
+                    f"Upload file must not be a symlink: {matched_path}"
+                )
+            if matched_path.is_file():
+                matched_files.append(matched_path)
         return sorted(matched_files)
 
     @staticmethod

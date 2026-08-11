@@ -237,3 +237,29 @@ class TestTwineUploadModule(unittest.TestCase):
             str(context.exception),
             "Twine upload failed for pattern 'dist/*.whl' with exit code 1",
         )
+
+    def test_run_rejects_symlink_matches(self):
+        """Reject symlinked files matched by upload globs."""
+        secret_file = os.path.join(self.temp_dir, "secret.txt")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.dist_dir, "evil-1.0.0-py3-none-any.whl")
+        try:
+            os.symlink(secret_file, link_path)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        self.mock_runner.run.return_value = 0
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(self.mock_runner, {"files": ["dist/*.whl"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Upload file must not be a symlink: {Path(link_path)}",
+        )
+        self.mock_runner.run.assert_called_once_with(
+            ["-m", "twine", "--version"],
+            cwd=self.temp_dir,
+        )
