@@ -123,3 +123,36 @@ class TestRobotframeworkTestModule(unittest.TestCase):
             )
 
         self.assertEqual(str(context.exception), "Robot failed with exit code 1")
+
+    def test_run_with_continue_on_failure_logs_and_defers_failure(self):
+        """Log robot failures and continue when continueOnFailure is true."""
+        self.mock_runner.run.return_value = 1
+
+        module = RobotframeworkTestModule()
+        module.run(
+            self.mock_runner,
+            {
+                "continueOnFailure": True,
+                "arguments": [{"--outputdir": "../result/uia2"}, "."],
+                "cwd": "ROOT/atests",
+            },
+        )
+
+        self.mock_runner.record_failure.assert_called_once_with(
+            "Robot failed with exit code 1"
+        )
+
+    def test_run_with_invalid_continue_on_failure_raises(self):
+        """Reject continueOnFailure values that are not booleans."""
+        module = RobotframeworkTestModule()
+
+        with self.assertRaises(DroneException) as context:
+            module.run(
+                self.mock_runner,
+                {"continueOnFailure": "true", "arguments": []},
+            )
+
+        self.assertEqual(
+            str(context.exception), "Argument 'continueOnFailure' must be a boolean"
+        )
+        self.mock_runner.run.assert_not_called()

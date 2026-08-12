@@ -23,7 +23,30 @@ emits only the key. This keeps positional arguments explicit and avoids using
 
 ## `robotframework.test`
 
+| Argument | Required | Description |
+| --- | --- | --- |
+| `continueOnFailure` | no | When `true`, log robot failures and continue the stage (default: `false`) |
+
+When `continueOnFailure` is `true`, a non-zero robot exit code is logged and
+recorded, later steps in the same stage still run, and the stage fails after
+all steps complete.
+
 ### Example
+
+```json
+{
+  "module": "robotframework.test",
+  "args": {
+    "continueOnFailure": true,
+    "arguments": [
+      {"--outputdir": "results"},
+      "tests"
+    ]
+  }
+}
+```
+
+### Example without deferred failure
 
 ```json
 {

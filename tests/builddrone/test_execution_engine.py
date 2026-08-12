@@ -115,6 +115,7 @@ class TestExecutionEngine(unittest.TestCase):
         """run should execute each step in the configured order."""
         custom_module = MagicMock()
         runner_instance = MagicMock()
+        runner_instance.has_failures.return_value = False
         mock_runner.return_value = runner_instance
         modules = {"custom": custom_module}
         engine = ExecutionEngine(modules)
@@ -195,6 +196,7 @@ class TestExecutionEngine(unittest.TestCase):
     def test_run_loads_json_config(self, mock_json_load, mock_runner):
         """run should deserialize the JSON configuration from disk."""
         runner_instance = MagicMock()
+        runner_instance.has_failures.return_value = False
         mock_runner.return_value = runner_instance
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "blueprint.json"
@@ -214,3 +216,36 @@ class TestExecutionEngine(unittest.TestCase):
 
         mock_json_load.assert_called_once()
         custom_module.run.assert_called_once_with(runner_instance, {})
+
+    @patch("builddrone.execution_engine.Runner")
+    @patch.object(
+        ExecutionEngine,
+        "_load_config",
+        return_value={
+            "build": [
+                {"module": "first", "args": {}},
+                {"module": "second", "args": {}},
+            ]
+        },
+    )
+    def test_run_raises_after_stage_when_deferred_failures_exist(
+        self, _mock_load_config, mock_runner
+    ):
+        """Deferred module failures should fail the stage after later steps run."""
+        runner_instance = MagicMock()
+        runner_instance.has_failures.return_value = True
+        runner_instance.get_failures.return_value = ["Robot failed with exit code 1"]
+        mock_runner.return_value = runner_instance
+        modules = {"first": MagicMock(), "second": MagicMock()}
+        engine = ExecutionEngine(modules)
+
+        with self.assertRaises(DroneException) as context:
+            engine.run("build")
+
+        self.assertEqual(
+            str(context.exception),
+            "Stage 'build' completed with failures: Robot failed with exit code 1",
+        )
+        runner_instance.reset_failures.assert_called_once_with()
+        modules["first"].run.assert_called_once_with(runner_instance, {})
+        modules["second"].run.assert_called_once_with(runner_instance, {})

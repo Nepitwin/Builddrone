@@ -32,6 +32,7 @@ class Runner:
 
         self._python_path = sys.executable
         self._base_path: Path | None = None
+        self._failures: list[str] = []
         if not self._python_path:
             raise DroneException("Python executable not found")
 
@@ -63,3 +64,20 @@ class Runner:
             check=False,
         )
         return result.returncode
+
+    def reset_failures(self) -> None:
+        """Clear recorded deferred failures."""
+        self._failures.clear()
+
+    def record_failure(self, message: str) -> None:
+        """Record a deferred failure to report after the current stage finishes."""
+        self._failures.append(message)
+        self.logger.error(message)
+
+    def has_failures(self) -> bool:
+        """Return whether any deferred failures were recorded."""
+        return bool(self._failures)
+
+    def get_failures(self) -> list[str]:
+        """Return recorded deferred failure messages."""
+        return list(self._failures)

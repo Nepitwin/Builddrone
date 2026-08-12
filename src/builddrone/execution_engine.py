@@ -70,9 +70,15 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         if not isinstance(steps, list):
             raise DroneException(f"Stage '{stage}' must be a list of steps")
 
+        self._runner.reset_failures()
         self._runner.logger.info("Running stage: %s", stage)
         for step in steps:
             self._execute_step(step)
+
+        if self._runner.has_failures():
+            failures = "; ".join(self._runner.get_failures())
+            raise DroneException(f"Stage '{stage}' completed with failures: {failures}")
+
         self._runner.logger.info("Completed stage: %s", stage)
 
     def _execute_step(self, step: dict) -> None:

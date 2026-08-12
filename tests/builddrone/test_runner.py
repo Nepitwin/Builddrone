@@ -168,3 +168,24 @@ class TestRunner(unittest.TestCase):
             cwd="C:/repo",
             check=False,
         )
+
+    def test_record_failure_tracks_deferred_failures(self):
+        """record_failure should log and retain messages for later reporting."""
+        runner = Runner()
+        runner.logger = MagicMock()
+
+        runner.record_failure("Robot failed with exit code 1")
+
+        runner.logger.error.assert_called_once_with("Robot failed with exit code 1")
+        self.assertTrue(runner.has_failures())
+        self.assertEqual(runner.get_failures(), ["Robot failed with exit code 1"])
+
+    def test_reset_failures_clears_deferred_failures(self):
+        """reset_failures should clear previously recorded failures."""
+        runner = Runner()
+        runner.record_failure("Robot failed with exit code 1")
+
+        runner.reset_failures()
+
+        self.assertFalse(runner.has_failures())
+        self.assertEqual(runner.get_failures(), [])

@@ -22,6 +22,15 @@ class RobotframeworkBaseModule(
     def run(self, runner: Runner, args: dict) -> None:
         """Run a Robot Framework command with expanded CLI arguments."""
         runner.logger.info(self.log_message)
+        exit_code = self._run_command(runner, args)
+
+        if exit_code != 0:
+            raise DroneException(
+                f"{self.failure_label} failed with exit code {exit_code}"
+            )
+
+    def _run_command(self, runner: Runner, args: dict) -> int:
+        """Run a Robot Framework command and return its exit code."""
         arguments = args.get("arguments", [])
         cwd = args.get("cwd")
 
@@ -41,12 +50,7 @@ class RobotframeworkBaseModule(
             )
 
         command = self._build_command(arguments)
-        exit_code = runner.run(command, cwd=str(working_directory))
-
-        if exit_code != 0:
-            raise DroneException(
-                f"{self.failure_label} failed with exit code {exit_code}"
-            )
+        return runner.run(command, cwd=str(working_directory))
 
     def _build_command(self, arguments: list) -> list[str]:
         """Convert standalone and key/value arguments into a command."""
