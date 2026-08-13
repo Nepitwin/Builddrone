@@ -87,6 +87,8 @@ class ArchiverModule(BaseModule):  # pylint: disable=too-few-public-methods
             raise DroneException("Argument 'folders' must contain non-empty strings")
 
         folder_path = self._resolve_path(folder, base_path)
+        if folder_path.is_symlink():
+            raise DroneException(f"Folder must not be a symlink: {folder_path}")
         if not folder_path.is_dir():
             raise DroneException(f"Folder not found: {folder_path}")
 

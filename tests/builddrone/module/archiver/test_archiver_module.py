@@ -281,3 +281,77 @@ class TestArchiverModule(unittest.TestCase):
             str(context.exception),
             f"File not found: {Path(self.temp_dir) / 'missing.txt'}",
         )
+
+    def test_run_rejects_symlinked_folder(self):
+        """Reject a folders entry whose path is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_file = os.path.join(host_dir, "job.env")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        shutil.rmtree(self.result_dir)
+        try:
+            os.symlink(host_dir, self.result_dir, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"filename": "results.zip", "folders": ["result"]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Folder must not be a symlink: {Path(self.result_dir)}",
+        )
+
+    def test_run_rejects_symlinked_folder_when_symlinks_unavailable(self):
+        """Reject a folders entry reported as a directory symlink."""
+        original_is_symlink = Path.is_symlink
+        folder_path = Path(self.result_dir)
+
+        def fake_is_symlink(path_self):
+            if path_self == folder_path:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(
+                    self.mock_runner,
+                    {"filename": "results.zip", "folders": ["result"]},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Folder must not be a symlink: {folder_path}",
+        )
+
+    def test_run_skips_nested_symlinked_directory(self):
+        """Do not traverse nested directory symlinks while archiving folders."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_file = os.path.join(host_dir, "job.env")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.result_dir, "linked_dir")
+        try:
+            os.symlink(host_dir, link_path, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        self.module.run(
+            self.mock_runner,
+            {"filename": "results.zip", "folders": ["result"]},
+        )
+
+        with zipfile.ZipFile(os.path.join(self.temp_dir, "results.zip")) as archive:
+            names = sorted(archive.namelist())
+            self.assertEqual(
+                names,
+                ["result/nested/nested.txt", "result/root.txt"],
+            )
+            self.assertNotIn("result/linked_dir/job.env", names)
