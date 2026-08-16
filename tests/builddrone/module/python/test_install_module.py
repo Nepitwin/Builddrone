@@ -27,7 +27,8 @@ class TestPythonInstallModule(unittest.TestCase):
 
         self.mock_runner.logger.info.assert_called_with("Installing...")
         self.mock_runner.run.assert_called_once_with(
-            ["-m", "pip", "install", "build"], cwd=str(Path("blueprint"))
+            ["-m", "pip", "install", "--disable-pip-version-check", "build"],
+            cwd=str(Path("blueprint")),
         )
 
     def test_run_without_source_raises(self):
@@ -51,7 +52,14 @@ class TestPythonInstallModule(unittest.TestCase):
         module.run(self.mock_runner, {"requirements": "requirements.txt"})
 
         self.mock_runner.run.assert_called_once_with(
-            ["-m", "pip", "install", "-r", "requirements.txt"],
+            [
+                "-m",
+                "pip",
+                "install",
+                "--disable-pip-version-check",
+                "-r",
+                "requirements.txt",
+            ],
             cwd=str(Path("blueprint")),
         )
 

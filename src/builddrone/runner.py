@@ -56,12 +56,17 @@ class Runner:
         return self._base_path or Path.cwd()
 
     def run(self, cmd, cwd=None) -> int:
-        """Execute a Python command and return the exit code."""
+        """Execute a Python command and return the exit code.
+
+        Child stderr is merged into stdout so PowerShell/AppVeyor do not treat
+        informational tool output (for example pip version notices) as errors.
+        """
         full_cmd = [self._python_path] + cmd
         result = subprocess.run(
             full_cmd,
             cwd=cwd,
             check=False,
+            stderr=subprocess.STDOUT,
         )
         return result.returncode
 

@@ -16,6 +16,9 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
     def run(self, runner: Runner, args: dict) -> None:
         """Install a package source with ``python -m pip install``.
 
+        ``--disable-pip-version-check`` suppresses pip upgrade notices that
+        otherwise go to stderr and fail PowerShell/AppVeyor hosts.
+
         Args:
             runner: Runner instance used to execute commands.
             args: Module configuration arguments.
@@ -32,7 +35,7 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
             raise DroneException("No source or requirements provided for install")
 
         exit_code = runner.run(
-            ["-m", "pip", "install", *install_args],
+            ["-m", "pip", "install", "--disable-pip-version-check", *install_args],
             cwd=str(runner.get_base_path()),
         )
 

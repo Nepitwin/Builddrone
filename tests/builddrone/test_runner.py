@@ -1,6 +1,7 @@
 """Tests for the Builddrone runner."""
 
 import logging
+import subprocess
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -96,6 +97,7 @@ class TestRunner(unittest.TestCase):
             ["C:/Python/python.exe", "-V"],
             cwd=None,
             check=False,
+            stderr=subprocess.STDOUT,
         )
 
     @patch("builddrone.runner.os.path.isfile")
@@ -122,6 +124,7 @@ class TestRunner(unittest.TestCase):
             ["C:/Python/python.exe", "-V"],
             cwd=None,
             check=False,
+            stderr=subprocess.STDOUT,
         )
 
     @patch("builddrone.runner.sys.executable", "C:/Python/python.exe")
@@ -144,6 +147,7 @@ class TestRunner(unittest.TestCase):
             ["C:/Python/python.exe", "-V"],
             cwd=None,
             check=False,
+            stderr=subprocess.STDOUT,
         )
 
     @patch("builddrone.runner.subprocess.run")
@@ -153,7 +157,7 @@ class TestRunner(unittest.TestCase):
     def test_run_executes_python_command(
         self, mock_get_logger, _mock_configure_logging, mock_subprocess_run
     ):
-        """run should execute the configured interpreter with the command."""
+        """run should execute the configured interpreter with stderr on stdout."""
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         mock_result = MagicMock(returncode=7)
@@ -167,6 +171,7 @@ class TestRunner(unittest.TestCase):
             ["C:/Python/python.exe", "-m", "pylint", "src/builddrone"],
             cwd="C:/repo",
             check=False,
+            stderr=subprocess.STDOUT,
         )
 
     def test_record_failure_tracks_deferred_failures(self):
