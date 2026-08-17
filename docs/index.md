@@ -33,6 +33,9 @@ load blueprint.json -> select stage -> execute steps -> report failures
 ```
 
 Any non-zero command exit code raises `DroneException` and stops the stage.
+`robotframework.test` and `robotframework.rebot` are the exception: exit codes
+1-250 mean tests failed, so later steps still run and the stage fails at the
+end. Tool errors such as a missing file still stop immediately.
 
 ## License
 

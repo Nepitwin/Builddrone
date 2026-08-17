@@ -13,6 +13,9 @@ class RobotframeworkRebotModule(  # pylint: disable=too-few-public-methods
     Blueprint configuration arguments:
         "arguments": "List of strings or single-entry key/value objects to pass to rebot"
         "cwd": "Optional working directory to run rebot from"
+
+    Exit codes 1-250 (failed tests) are deferred like robot. Tool errors such
+    as a missing output file still stop the stage immediately.
     """
 
     command_prefix = ["-m", "robot.rebot"]

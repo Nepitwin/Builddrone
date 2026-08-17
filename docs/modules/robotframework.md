@@ -21,32 +21,28 @@ emits only the key. This keeps positional arguments explicit and avoids using
 | `arguments` | yes | Ordered Robot Framework command-line arguments |
 | `cwd` | no | Working directory for the command |
 
+## Exit codes
+
+`robot` and `rebot` use the same return codes. Builddrone treats test-result
+codes differently from tool errors:
+
+| Exit code | Meaning | Stage behavior |
+| --- | --- | --- |
+| 0 | All tests passed | Continue |
+| 1-249 | That many tests failed | Log the failure, continue later steps, fail the stage at the end |
+| 250 | 250 or more tests failed | Log the failure, continue later steps, fail the stage at the end |
+| 251 | Help or version printed | Stop immediately |
+| 252 | Invalid data or command line options, including a missing file | Stop immediately |
+| 253 | Execution stopped by the user | Stop immediately |
+| 255 | Unexpected internal error | Stop immediately |
+
+That lets a `test` stage keep going after failed tests so later steps such as
+`robotframework.rebot` can still generate combined reports. The stage still
+fails after all steps complete.
+
 ## `robotframework.test`
 
-| Argument | Required | Description |
-| --- | --- | --- |
-| `continueOnFailure` | no | When `true`, log robot failures and continue the stage (default: `false`) |
-
-When `continueOnFailure` is `true`, a non-zero robot exit code is logged and
-recorded, later steps in the same stage still run, and the stage fails after
-all steps complete.
-
 ### Example
-
-```json
-{
-  "module": "robotframework.test",
-  "args": {
-    "continueOnFailure": true,
-    "arguments": [
-      {"--outputdir": "results"},
-      "tests"
-    ]
-  }
-}
-```
-
-### Example without deferred failure
 
 ```json
 {

@@ -17,6 +17,9 @@ The `test` stage:
 2. Runs `robotframework.test`, writing `results/output.xml`
 3. Runs `robotframework.rebot`, producing reports under `results/rebot`
 
+Failed tests (exit codes 1-250) do not stop the stage immediately, so rebot
+can still post-process results. The stage then fails after all steps complete.
+
 The `cleanup` stage removes `.venv` and `results`.
 
 ## Blueprint

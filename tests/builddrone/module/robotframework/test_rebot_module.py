@@ -94,19 +94,43 @@ class TestRobotframeworkRebotModule(unittest.TestCase):
         self.assertEqual(str(context.exception), "Cwd must be a path or string")
         self.mock_runner.run.assert_not_called()
 
-    def test_run_with_nonzero_exit_code_raises(self):
-        """Raise when rebot returns a non-zero exit code."""
-        self.mock_runner.run.return_value = 1
-
+    def test_run_defers_test_failure_exit_codes(self):
+        """Log and continue when rebot reports failed tests (exit codes 1-250)."""
         module = RobotframeworkRebotModule()
+        args = {
+            "arguments": [{"--outputdir": "result"}, "result/output.xml"],
+            "cwd": "ROOT/atests",
+        }
 
-        with self.assertRaises(DroneException) as context:
-            module.run(
-                self.mock_runner,
-                {
-                    "arguments": [{"--outputdir": "result"}, "result/output.xml"],
-                    "cwd": "ROOT/atests",
-                },
-            )
+        for exit_code in (1, 249, 250):
+            with self.subTest(exit_code=exit_code):
+                self.mock_runner.run.return_value = exit_code
+                self.mock_runner.record_failure.reset_mock()
 
-        self.assertEqual(str(context.exception), "Rebot failed with exit code 1")
+                module.run(self.mock_runner, args)
+
+                self.mock_runner.record_failure.assert_called_once_with(
+                    f"Rebot failed with exit code {exit_code}"
+                )
+
+    def test_run_raises_on_tool_error_exit_codes(self):
+        """Stop immediately on help, invalid data, interrupt, and internal errors."""
+        module = RobotframeworkRebotModule()
+        args = {
+            "arguments": [{"--outputdir": "result"}, "result/output.xml"],
+            "cwd": "ROOT/atests",
+        }
+
+        for exit_code in (251, 252, 253, 255):
+            with self.subTest(exit_code=exit_code):
+                self.mock_runner.run.return_value = exit_code
+                self.mock_runner.record_failure.reset_mock()
+
+                with self.assertRaises(DroneException) as context:
+                    module.run(self.mock_runner, args)
+
+                self.assertEqual(
+                    str(context.exception),
+                    f"Rebot failed with exit code {exit_code}",
+                )
+                self.mock_runner.record_failure.assert_not_called()
