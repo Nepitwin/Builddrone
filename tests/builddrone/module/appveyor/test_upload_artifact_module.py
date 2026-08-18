@@ -139,6 +139,39 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
             f"Artifact file not found: {Path(self.temp_dir) / 'missing.zip'}",
         )
 
+    def test_run_rejects_symlink(self):
+        """Reject a listed artifact path that is a symlink."""
+        secret_file = os.path.join(self.temp_dir, "secret.txt")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.temp_dir, "linked.zip")
+        try:
+            os.symlink(secret_file, link_path)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(self.mock_runner, {"files": ["linked.zip"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Artifact file must not be a symlink: {Path(link_path)}",
+        )
+
+    @patch("builddrone.module.appveyor.upload_artifact_module.Path.is_symlink")
+    def test_run_rejects_symlink_when_symlinks_unavailable(self, mock_is_symlink):
+        """Reject an artifact path reported as a symlink."""
+        mock_is_symlink.return_value = True
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(self.mock_runner, {"files": ["results.zip"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Artifact file must not be a symlink: {Path(self.artifact_file)}",
+        )
+
     @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
     def test_run_fails_on_non_zero_exit_code(self, mock_run):
         """Surface Push-AppveyorArtifact failures."""

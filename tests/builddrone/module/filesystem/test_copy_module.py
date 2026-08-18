@@ -181,24 +181,35 @@ class TestFilesystemCopyModule(unittest.TestCase):
             f"Error copying file {attempted_source} : Permission denied"
         )
 
-    @patch(
-        "builddrone.module.filesystem.copy_module.Path.is_symlink",
-        return_value=True,
-    )
-    def test_run_skips_symlinked_file_when_symlinks_unavailable(self, _mock_is_symlink):
-        """Skip symlinked files instead of copying their targets."""
+    def test_run_skips_symlinked_file_when_symlinks_unavailable(self):
+        """Skip files reported as symlinks instead of copying their targets."""
+        link_path = Path(self.source_dir) / "linked.txt"
+        link_path.write_text("linked", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == link_path:
+                return True
+            return original_is_symlink(path_self)
+
         module = FilesystemCopyModule()
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            module.run(
+                self.mock_runner,
+                {
+                    "source": self.source_dir,
+                    "destination": self.destination_dir,
+                },
+            )
 
-        module.run(
-            self.mock_runner,
-            {
-                "source": self.source_dir,
-                "destination": self.destination_dir,
-            },
+        self.assertTrue(os.path.isfile(os.path.join(self.destination_dir, "root.txt")))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.destination_dir, "linked.txt"))
         )
-
-        self.assertFalse(os.path.exists(os.path.join(self.destination_dir, "root.txt")))
-        self.mock_runner.logger.warning.assert_called()
+        self.mock_runner.logger.warning.assert_called_once_with(
+            "Skipping symlink: %s",
+            link_path,
+        )
 
     def test_run_skips_symlinked_file(self):
         """Skip symlinked files instead of copying their targets."""
@@ -256,4 +267,88 @@ class TestFilesystemCopyModule(unittest.TestCase):
         self.mock_runner.logger.warning.assert_called_once_with(
             "Skipping symlink: %s",
             Path(link_path),
+        )
+
+    def test_run_rejects_symlinked_source(self):
+        """Reject a source path that is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_file = os.path.join(host_dir, "job.env")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        shutil.rmtree(self.source_dir)
+        try:
+            os.symlink(host_dir, self.source_dir, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        module = FilesystemCopyModule()
+        with self.assertRaises(DroneException) as context:
+            module.run(
+                self.mock_runner,
+                {
+                    "source": self.source_dir,
+                    "destination": self.destination_dir,
+                },
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Source must not be a symlink: {Path(self.source_dir)}",
+        )
+        self.assertFalse(os.path.exists(os.path.join(self.destination_dir, "job.env")))
+
+    def test_run_rejects_symlinked_source_when_symlinks_unavailable(self):
+        """Reject a source path reported as a directory symlink."""
+        original_is_symlink = Path.is_symlink
+        source_path = Path(self.source_dir)
+
+        def fake_is_symlink(path_self):
+            if path_self == source_path:
+                return True
+            return original_is_symlink(path_self)
+
+        module = FilesystemCopyModule()
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                module.run(
+                    self.mock_runner,
+                    {
+                        "source": self.source_dir,
+                        "destination": self.destination_dir,
+                    },
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Source must not be a symlink: {source_path}",
+        )
+
+    def test_run_skips_nested_symlinked_directory(self):
+        """Do not traverse nested directory symlinks while copying folders."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_file = os.path.join(host_dir, "job.env")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        link_path = os.path.join(self.source_dir, "linked_dir")
+        try:
+            os.symlink(host_dir, link_path, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        module = FilesystemCopyModule()
+        module.run(
+            self.mock_runner,
+            {
+                "source": self.source_dir,
+                "destination": self.destination_dir,
+            },
+        )
+
+        self.assertTrue(os.path.isfile(os.path.join(self.destination_dir, "root.txt")))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.destination_dir, "linked_dir", "job.env"))
         )

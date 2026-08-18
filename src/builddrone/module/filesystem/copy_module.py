@@ -58,6 +58,8 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
         if not os.path.isabs(destination):
             destination_path = base_path / destination_path
 
+        if source_path.is_symlink():
+            raise DroneException(f"Source must not be a symlink: {source_path}")
         if not os.path.isdir(source_path):
             raise DroneException(f"Source is not a directory: {source_path}")
 
