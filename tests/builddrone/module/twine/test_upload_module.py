@@ -8,7 +8,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
 from builddrone.module.twine.upload_module import TwineUploadModule
@@ -258,6 +258,58 @@ class TestTwineUploadModule(unittest.TestCase):
         self.assertEqual(
             str(context.exception),
             f"Upload file must not be a symlink: {Path(link_path)}",
+        )
+        self.mock_runner.run.assert_called_once_with(
+            ["-m", "twine", "--version"],
+            cwd=self.temp_dir,
+        )
+
+    def test_run_rejects_glob_through_directory_symlink(self):
+        """Reject glob matches whose prefix is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_wheel = os.path.join(host_dir, "secret-1.0.0-py3-none-any.whl")
+        with open(secret_wheel, "wb") as file:
+            file.write(b"secret-data")
+
+        shutil.rmtree(self.dist_dir)
+        try:
+            os.symlink(host_dir, self.dist_dir, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        self.mock_runner.run.return_value = 0
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(self.mock_runner, {"files": ["dist/*.whl"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Upload file must not be a symlink: {Path(self.dist_dir)}",
+        )
+        self.mock_runner.run.assert_called_once_with(
+            ["-m", "twine", "--version"],
+            cwd=self.temp_dir,
+        )
+
+    def test_run_rejects_glob_through_directory_symlink_when_symlinks_unavailable(self):
+        """Reject glob matches whose prefix is reported as a directory symlink."""
+        dist_path = Path(self.dist_dir)
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == dist_path:
+                return True
+            return original_is_symlink(path_self)
+
+        self.mock_runner.run.return_value = 0
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(self.mock_runner, {"files": ["dist/*.whl"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Upload file must not be a symlink: {dist_path}",
         )
         self.mock_runner.run.assert_called_once_with(
             ["-m", "twine", "--version"],

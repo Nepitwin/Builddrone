@@ -8,6 +8,10 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.path_safety import (
+    first_symlink_component,
+    reject_symlink_component,
+)
 from builddrone.runner import Runner
 
 
@@ -41,6 +45,7 @@ class ArchiverModule(BaseModule):  # pylint: disable=too-few-public-methods
             )
 
         destination = self._resolve_path(filename, base_path)
+        reject_symlink_component(destination, base_path, "Archive filename")
         destination.parent.mkdir(parents=True, exist_ok=True)
 
         runner.logger.info("Creating archive: %s", destination)
@@ -87,8 +92,7 @@ class ArchiverModule(BaseModule):  # pylint: disable=too-few-public-methods
             raise DroneException("Argument 'folders' must contain non-empty strings")
 
         folder_path = self._resolve_path(folder, base_path)
-        if folder_path.is_symlink():
-            raise DroneException(f"Folder must not be a symlink: {folder_path}")
+        reject_symlink_component(folder_path, base_path, "Folder")
         if not folder_path.is_dir():
             raise DroneException(f"Folder not found: {folder_path}")
 
@@ -116,9 +120,12 @@ class ArchiverModule(BaseModule):  # pylint: disable=too-few-public-methods
             raise DroneException("Argument 'files' must contain non-empty strings")
 
         source_path = self._resolve_path(file_path, base_path)
-        if source_path.is_symlink():
-            runner.logger.warning("Skipping symlink: %s", source_path)
-            return
+        symlink = first_symlink_component(source_path, base_path)
+        if symlink is not None:
+            if symlink == source_path:
+                runner.logger.warning("Skipping symlink: %s", source_path)
+                return
+            raise DroneException(f"File must not be a symlink: {symlink}")
         if not source_path.is_file():
             raise DroneException(f"File not found: {source_path}")
 

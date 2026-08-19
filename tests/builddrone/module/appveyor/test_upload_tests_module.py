@@ -1,5 +1,8 @@
 """Tests for the AppVeyor upload tests module."""
 
+# These tests share symlink setup patterns with other upload modules.
+# pylint: disable=duplicate-code,too-many-public-methods
+
 import os
 import shutil
 import tempfile
@@ -265,6 +268,56 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         self.assertEqual(
             str(context.exception),
             f"Test results file must not be a symlink: {Path(link_path)}",
+        )
+
+    def test_run_rejects_intermediate_directory_symlink(self):
+        """Reject results paths whose prefix is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_file = os.path.join(host_dir, "xunit.xml")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        results_dir = os.path.join(self.temp_dir, "results")
+        try:
+            os.symlink(host_dir, results_dir, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"sources": [{"file": "results/xunit.xml", "type": "xunit"}]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Test results file must not be a symlink: {Path(results_dir)}",
+        )
+
+    def test_run_rejects_intermediate_directory_symlink_when_symlinks_unavailable(self):
+        """Reject results paths whose prefix is reported as a directory symlink."""
+        results_dir = Path(self.temp_dir) / "results"
+        results_dir.mkdir()
+        results_file = results_dir / "xunit.xml"
+        results_file.write_text("secret-data", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == results_dir:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(
+                    self.mock_runner,
+                    {"sources": [{"file": "results/xunit.xml", "type": "xunit"}]},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Test results file must not be a symlink: {results_dir}",
         )
 
     @patch("builddrone.module.appveyor.upload_tests_module.time.sleep")

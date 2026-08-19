@@ -1,7 +1,7 @@
 """Tests for the filesystem copy module."""
 
 # These tests share symlink setup patterns with the archiver module tests.
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,too-many-public-methods
 
 import os
 import shutil
@@ -351,4 +351,119 @@ class TestFilesystemCopyModule(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.destination_dir, "root.txt")))
         self.assertFalse(
             os.path.exists(os.path.join(self.destination_dir, "linked_dir", "job.env"))
+        )
+
+    def test_run_rejects_intermediate_source_directory_symlink(self):
+        """Reject a nested source whose prefix is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        inner_dir = os.path.join(host_dir, "inner")
+        os.makedirs(inner_dir)
+        secret_file = os.path.join(inner_dir, "job.env")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        outer_link = os.path.join(self.temp_dir, "outer")
+        try:
+            os.symlink(host_dir, outer_link, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        module = FilesystemCopyModule()
+        with self.assertRaises(DroneException) as context:
+            module.run(
+                self.mock_runner,
+                {
+                    "source": "outer/inner",
+                    "destination": "destination",
+                },
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Source must not be a symlink: {Path(outer_link)}",
+        )
+        self.assertFalse(os.path.exists(os.path.join(self.destination_dir, "job.env")))
+
+    def test_run_rejects_intermediate_source_directory_symlink_when_symlinks_unavailable(
+        self,
+    ):
+        """Reject a nested source whose prefix is reported as a directory symlink."""
+        outer_dir = Path(self.temp_dir) / "outer"
+        inner_dir = outer_dir / "inner"
+        inner_dir.mkdir(parents=True)
+        (inner_dir / "job.env").write_text("secret-data", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == outer_dir:
+                return True
+            return original_is_symlink(path_self)
+
+        module = FilesystemCopyModule()
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                module.run(
+                    self.mock_runner,
+                    {
+                        "source": "outer/inner",
+                        "destination": "destination",
+                    },
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Source must not be a symlink: {outer_dir}",
+        )
+
+    def test_run_rejects_symlinked_destination(self):
+        """Reject a destination path that is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host-dest")
+        os.makedirs(host_dir)
+
+        try:
+            os.symlink(host_dir, self.destination_dir, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        module = FilesystemCopyModule()
+        with self.assertRaises(DroneException) as context:
+            module.run(
+                self.mock_runner,
+                {
+                    "source": self.source_dir,
+                    "destination": self.destination_dir,
+                },
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Destination must not be a symlink: {Path(self.destination_dir)}",
+        )
+        self.assertFalse(os.path.exists(os.path.join(host_dir, "root.txt")))
+
+    def test_run_rejects_symlinked_destination_when_symlinks_unavailable(self):
+        """Reject a destination path reported as a directory symlink."""
+        os.makedirs(self.destination_dir)
+        destination_path = Path(self.destination_dir)
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == destination_path:
+                return True
+            return original_is_symlink(path_self)
+
+        module = FilesystemCopyModule()
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                module.run(
+                    self.mock_runner,
+                    {
+                        "source": self.source_dir,
+                        "destination": self.destination_dir,
+                    },
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Destination must not be a symlink: {destination_path}",
         )

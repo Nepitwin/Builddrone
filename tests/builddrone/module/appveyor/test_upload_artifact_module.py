@@ -159,17 +159,67 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
             f"Artifact file must not be a symlink: {Path(link_path)}",
         )
 
-    @patch("builddrone.module.appveyor.upload_artifact_module.Path.is_symlink")
-    def test_run_rejects_symlink_when_symlinks_unavailable(self, mock_is_symlink):
+    def test_run_rejects_symlink_when_symlinks_unavailable(self):
         """Reject an artifact path reported as a symlink."""
-        mock_is_symlink.return_value = True
+        artifact_path = Path(self.artifact_file)
+        original_is_symlink = Path.is_symlink
 
-        with self.assertRaises(DroneException) as context:
-            self.module.run(self.mock_runner, {"files": ["results.zip"]})
+        def fake_is_symlink(path_self):
+            if path_self == artifact_path:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(self.mock_runner, {"files": ["results.zip"]})
 
         self.assertEqual(
             str(context.exception),
-            f"Artifact file must not be a symlink: {Path(self.artifact_file)}",
+            f"Artifact file must not be a symlink: {artifact_path}",
+        )
+
+    def test_run_rejects_intermediate_directory_symlink(self):
+        """Reject artifact paths whose prefix is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_file = os.path.join(host_dir, "results.zip")
+        with open(secret_file, "wb") as file:
+            file.write(b"secret-data")
+
+        artifacts_dir = os.path.join(self.temp_dir, "artifacts")
+        try:
+            os.symlink(host_dir, artifacts_dir, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(self.mock_runner, {"files": ["artifacts/results.zip"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Artifact file must not be a symlink: {Path(artifacts_dir)}",
+        )
+
+    def test_run_rejects_intermediate_directory_symlink_when_symlinks_unavailable(self):
+        """Reject artifact paths whose prefix is reported as a directory symlink."""
+        artifacts_dir = Path(self.temp_dir) / "artifacts"
+        artifacts_dir.mkdir()
+        artifact_file = artifacts_dir / "results.zip"
+        artifact_file.write_bytes(b"secret-data")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == artifacts_dir:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(self.mock_runner, {"files": ["artifacts/results.zip"]})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Artifact file must not be a symlink: {artifacts_dir}",
         )
 
     @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")

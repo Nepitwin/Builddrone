@@ -8,6 +8,7 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.path_safety import reject_symlink_component
 from builddrone.runner import Runner
 
 
@@ -86,10 +87,7 @@ class TwineUploadModule(BaseModule):  # pylint: disable=too-few-public-methods
         matched_files: list[Path] = []
         for match in glob.glob(search_pattern):
             matched_path = Path(match)
-            if matched_path.is_symlink():
-                raise DroneException(
-                    f"Upload file must not be a symlink: {matched_path}"
-                )
+            reject_symlink_component(matched_path, base_path, "Upload file")
             if matched_path.is_file():
                 matched_files.append(matched_path)
         return sorted(matched_files)

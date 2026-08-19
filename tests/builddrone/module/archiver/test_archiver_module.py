@@ -1,5 +1,8 @@
 """Tests for the archiver module."""
 
+# These tests share symlink setup patterns with other filesystem modules.
+# pylint: disable=duplicate-code,too-many-public-methods
+
 import os
 import shutil
 import tempfile
@@ -170,17 +173,22 @@ class TestArchiverModule(unittest.TestCase):
             f"Folder not found: {Path(self.temp_dir) / 'missing'}",
         )
 
-    @patch(
-        "builddrone.module.archiver.archiver_module.Path.is_symlink",
-        return_value=True,
-    )
-    def test_run_skips_symlinked_file_when_symlinks_unavailable(self, _mock_is_symlink):
+    def test_run_skips_symlinked_file_when_symlinks_unavailable(self):
         """Skip symlinked files instead of packing their targets."""
+        link_path = Path(self.temp_dir) / "result" / "root.txt"
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == link_path:
+                return True
+            return original_is_symlink(path_self)
+
         archive_path = os.path.join(self.temp_dir, "results.zip")
-        self.module.run(
-            self.mock_runner,
-            {"filename": "results.zip", "files": ["result/root.txt"]},
-        )
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            self.module.run(
+                self.mock_runner,
+                {"filename": "results.zip", "files": ["result/root.txt"]},
+            )
 
         with zipfile.ZipFile(archive_path) as archive:
             self.assertEqual(archive.namelist(), [])
@@ -355,3 +363,182 @@ class TestArchiverModule(unittest.TestCase):
                 ["result/nested/nested.txt", "result/root.txt"],
             )
             self.assertNotIn("result/linked_dir/job.env", names)
+
+    def test_run_rejects_intermediate_folder_directory_symlink(self):
+        """Reject a nested folders entry whose prefix is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        inner_dir = os.path.join(host_dir, "inner")
+        os.makedirs(inner_dir)
+        secret_file = os.path.join(inner_dir, "job.env")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        outer_link = os.path.join(self.temp_dir, "outer")
+        try:
+            os.symlink(host_dir, outer_link, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"filename": "results.zip", "folders": ["outer/inner"]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Folder must not be a symlink: {Path(outer_link)}",
+        )
+
+    def test_run_rejects_intermediate_folder_directory_symlink_when_symlinks_unavailable(
+        self,
+    ):
+        """Reject a nested folders entry whose prefix is reported as a symlink."""
+        outer_dir = Path(self.temp_dir) / "outer"
+        inner_dir = outer_dir / "inner"
+        inner_dir.mkdir(parents=True)
+        (inner_dir / "job.env").write_text("secret-data", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == outer_dir:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(
+                    self.mock_runner,
+                    {"filename": "results.zip", "folders": ["outer/inner"]},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Folder must not be a symlink: {outer_dir}",
+        )
+
+    def test_run_rejects_intermediate_file_directory_symlink(self):
+        """Reject a files entry whose prefix is a directory symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+        secret_file = os.path.join(host_dir, "job.env")
+        with open(secret_file, "w", encoding="utf-8") as file:
+            file.write("secret-data")
+
+        outer_link = os.path.join(self.temp_dir, "outer")
+        try:
+            os.symlink(host_dir, outer_link, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"filename": "results.zip", "files": ["outer/job.env"]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"File must not be a symlink: {Path(outer_link)}",
+        )
+
+    def test_run_rejects_intermediate_file_directory_symlink_when_symlinks_unavailable(
+        self,
+    ):
+        """Reject a files entry whose prefix is reported as a directory symlink."""
+        outer_dir = Path(self.temp_dir) / "outer"
+        outer_dir.mkdir()
+        (outer_dir / "job.env").write_text("secret-data", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == outer_dir:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(
+                    self.mock_runner,
+                    {"filename": "results.zip", "files": ["outer/job.env"]},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"File must not be a symlink: {outer_dir}",
+        )
+
+    def test_run_rejects_symlinked_archive_filename(self):
+        """Reject an archive filename that is a file symlink."""
+        host_file = os.path.join(self.temp_dir, "host-secret.txt")
+        with open(host_file, "wb") as file:
+            file.write(b"secret-data")
+
+        archive_link = os.path.join(self.temp_dir, "results.zip")
+        try:
+            os.symlink(host_file, archive_link)
+        except OSError:
+            self.skipTest("Cannot create symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {"filename": "results.zip", "files": ["result/root.txt"]},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Archive filename must not be a symlink: {Path(archive_link)}",
+        )
+        with open(host_file, "rb") as file:
+            self.assertEqual(file.read(), b"secret-data")
+
+    def test_run_rejects_symlinked_archive_filename_when_symlinks_unavailable(self):
+        """Reject an archive filename reported as a file symlink."""
+        archive_path = Path(self.temp_dir) / "results.zip"
+        archive_path.write_text("old", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+
+        def fake_is_symlink(path_self):
+            if path_self == archive_path:
+                return True
+            return original_is_symlink(path_self)
+
+        with patch.object(Path, "is_symlink", fake_is_symlink):
+            with self.assertRaises(DroneException) as context:
+                self.module.run(
+                    self.mock_runner,
+                    {"filename": "results.zip", "files": ["result/root.txt"]},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Archive filename must not be a symlink: {archive_path}",
+        )
+        self.assertEqual(archive_path.read_text(encoding="utf-8"), "old")
+
+    def test_run_rejects_archive_filename_parent_directory_symlink(self):
+        """Reject an archive filename whose parent directory is a symlink."""
+        host_dir = os.path.join(self.temp_dir, "host")
+        os.makedirs(host_dir)
+
+        output_link = os.path.join(self.temp_dir, "output")
+        try:
+            os.symlink(host_dir, output_link, target_is_directory=True)
+        except OSError:
+            self.skipTest("Cannot create directory symlinks on this platform")
+
+        with self.assertRaises(DroneException) as context:
+            self.module.run(
+                self.mock_runner,
+                {
+                    "filename": "output/results.zip",
+                    "files": ["result/root.txt"],
+                },
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Archive filename must not be a symlink: {Path(output_link)}",
+        )
+        self.assertFalse(os.path.exists(os.path.join(host_dir, "results.zip")))

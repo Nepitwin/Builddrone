@@ -8,6 +8,7 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.path_safety import reject_symlink_component
 from builddrone.runner import Runner
 
 
@@ -46,10 +47,7 @@ class AppveyorUploadArtifactModule(
         if not os.path.isabs(path):
             artifact_path = base_path / artifact_path
 
-        if artifact_path.is_symlink():
-            raise DroneException(
-                f"Artifact file must not be a symlink: {artifact_path}"
-            )
+        reject_symlink_component(artifact_path, base_path, "Artifact file")
         if not artifact_path.is_file():
             raise DroneException(f"Artifact file not found: {artifact_path}")
         return artifact_path

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.path_safety import reject_symlink_component
 from builddrone.runner import Runner
 
 
@@ -58,11 +59,11 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
         if not os.path.isabs(destination):
             destination_path = base_path / destination_path
 
-        if source_path.is_symlink():
-            raise DroneException(f"Source must not be a symlink: {source_path}")
+        reject_symlink_component(source_path, base_path, "Source")
         if not os.path.isdir(source_path):
             raise DroneException(f"Source is not a directory: {source_path}")
 
+        reject_symlink_component(destination_path, base_path, "Destination")
         os.makedirs(destination_path, exist_ok=True)
 
         for root, _, files in os.walk(source_path, followlinks=False):
@@ -70,8 +71,9 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
             target_root = (
                 destination_path
                 if relative_root == "."
-                else os.path.join(destination_path, relative_root)
+                else destination_path / relative_root
             )
+            reject_symlink_component(target_root, base_path, "Destination")
             os.makedirs(target_root, exist_ok=True)
 
             for file_name in files:
@@ -85,9 +87,10 @@ class FilesystemCopyModule(BaseModule):  # pylint: disable=too-few-public-method
                     runner.logger.warning("Skipping symlink: %s", source_file)
                     continue
 
-                destination_file = os.path.join(target_root, file_name)
+                destination_file = Path(target_root) / file_name
+                reject_symlink_component(destination_file, base_path, "Destination")
                 FilesystemCopyModule._copy_file(
-                    runner, str(source_file), destination_file
+                    runner, str(source_file), str(destination_file)
                 )
 
     @staticmethod
