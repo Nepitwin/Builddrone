@@ -6,6 +6,7 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.path_safety import reject_symlink_component
 from builddrone.runner import Runner
 
 
@@ -32,6 +33,8 @@ class CleanupModule(BaseModule):  # pylint: disable=too-few-public-methods
             if not os.path.isabs(file):
                 resolved_file = base_path / file
 
+            reject_symlink_component(resolved_file, base_path, "Cleanup file")
+
             if not os.path.exists(resolved_file):
                 # If file not exists, nothing to delete
                 continue
@@ -53,6 +56,8 @@ class CleanupModule(BaseModule):  # pylint: disable=too-few-public-methods
             resolved_folder = Path(folder)
             if not os.path.isabs(folder):
                 resolved_folder = base_path / folder
+
+            reject_symlink_component(resolved_folder, base_path, "Cleanup folder")
 
             if not os.path.exists(resolved_folder):
                 # If folder not exists, nothing to delete
