@@ -81,7 +81,7 @@ jobs:
 
       - name: Run pylint
         run: |
-          pylint $(git ls-files '*.py')
+          pylint src tests
 
 
   pytest:
