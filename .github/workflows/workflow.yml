@@ -133,6 +133,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -146,13 +147,19 @@ jobs:
 
       - name: Build distribution
         run: |
+          rm -rf dist
+          mkdir dist
           python -m build
 
       - name: Upload distribution artifact
         uses: actions/upload-artifact@v7
         with:
           name: python-package-distributions
-          path: dist/
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+          followSymbolicLinks: false
 
 
   publish:
