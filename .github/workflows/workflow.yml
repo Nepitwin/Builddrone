@@ -12,6 +12,9 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+
 jobs:
 
   black:
@@ -135,6 +138,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Reject checkout symlinks
+        run: |
+          set -euo pipefail
+          links="$(find . -path ./.git -prune -o -type l -print)"
+          if [ -n "${links}" ]; then
+            echo "Checkout contains symlinks; refusing to build:" >&2
+            echo "${links}" >&2
+            exit 1
+          fi
+
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
@@ -146,12 +159,21 @@ jobs:
           pip install build
 
       - name: Build distribution
+        env:
+          GITHUB_TOKEN: ""
         run: |
+          set -euo pipefail
+          while IFS='=' read -r name _; do
+            case "${name}" in
+              GITHUB_TOKEN|ACTIONS_*) unset "${name}" ;;
+            esac
+          done < <(env)
           rm -rf dist
           mkdir dist
           python -m build
 
       - name: Upload distribution artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: python-package-distributions
