@@ -24,6 +24,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Reject checkout symlinks
+        run: |
+          set -euo pipefail
+          links="$(find . -path ./.git -prune -o -type l -print)"
+          if [ -n "${links}" ]; then
+            echo "Checkout contains symlinks; refusing to lint:" >&2
+            echo "${links}" >&2
+            exit 1
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -36,7 +48,15 @@ jobs:
           pip install black
 
       - name: Run Black check
+        env:
+          GITHUB_TOKEN: ""
         run: |
+          set -euo pipefail
+          while IFS='=' read -r name _; do
+            case "${name}" in
+              GITHUB_TOKEN|ACTIONS_*) unset "${name}" ;;
+            esac
+          done < <(env)
           black --check src tests
 
 
@@ -47,6 +67,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Reject checkout symlinks
+        run: |
+          set -euo pipefail
+          links="$(find . -path ./.git -prune -o -type l -print)"
+          if [ -n "${links}" ]; then
+            echo "Checkout contains symlinks; refusing to lint:" >&2
+            echo "${links}" >&2
+            exit 1
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -59,7 +91,15 @@ jobs:
           pip install isort
 
       - name: Run isort check
+        env:
+          GITHUB_TOKEN: ""
         run: |
+          set -euo pipefail
+          while IFS='=' read -r name _; do
+            case "${name}" in
+              GITHUB_TOKEN|ACTIONS_*) unset "${name}" ;;
+            esac
+          done < <(env)
           isort --check-only src tests
 
 
@@ -70,6 +110,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Reject checkout symlinks
+        run: |
+          set -euo pipefail
+          links="$(find . -path ./.git -prune -o -type l -print)"
+          if [ -n "${links}" ]; then
+            echo "Checkout contains symlinks; refusing to lint:" >&2
+            echo "${links}" >&2
+            exit 1
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -83,7 +135,15 @@ jobs:
           pip install pylint
 
       - name: Run pylint
+        env:
+          GITHUB_TOKEN: ""
         run: |
+          set -euo pipefail
+          while IFS='=' read -r name _; do
+            case "${name}" in
+              GITHUB_TOKEN|ACTIONS_*) unset "${name}" ;;
+            esac
+          done < <(env)
           pylint src tests
 
 
@@ -104,6 +164,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Reject checkout symlinks
+        run: |
+          set -euo pipefail
+          links="$(find . -path ./.git -prune -o -type l -print)"
+          if [ -n "${links}" ]; then
+            echo "Checkout contains symlinks; refusing to test:" >&2
+            echo "${links}" >&2
+            exit 1
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -117,7 +189,15 @@ jobs:
           pip install pytest
 
       - name: Run tests
+        env:
+          GITHUB_TOKEN: ""
         run: |
+          set -euo pipefail
+          while IFS='=' read -r name _; do
+            case "${name}" in
+              GITHUB_TOKEN|ACTIONS_*) unset "${name}" ;;
+            esac
+          done < <(env)
           pytest
 
 
