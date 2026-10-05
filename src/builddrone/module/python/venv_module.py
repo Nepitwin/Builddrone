@@ -8,6 +8,7 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.path_safety import reject_symlink_component
 from builddrone.runner import Runner
 
 
@@ -32,25 +33,28 @@ class PythonVirtualEnvironmentModule(
         if not isinstance(source, str) or not source:
             raise DroneException("No source provided for virtual environment")
 
+        base_path = Path(runner.get_base_path())
         venv_path = Path(source)
         if not venv_path.is_absolute():
-            venv_path = Path(runner.get_base_path()) / venv_path
+            venv_path = base_path / venv_path
+
+        reject_symlink_component(venv_path, base_path, "Virtual environment")
+
+        runner.logger.info("Creating virtual environment: %s", venv_path)
+        try:
+            venv.create(venv_path, with_pip=True, clear=True, symlinks=False)
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as exception:
+            raise DroneException(
+                f"Could not create virtual environment: {venv_path}"
+            ) from exception
 
         python_executable = self._resolve_python_executable(venv_path)
-
-        if python_executable is None:
-            runner.logger.info("Creating virtual environment: %s", venv_path)
-            try:
-                venv.create(venv_path, with_pip=True)
-            except (OSError, RuntimeError, subprocess.CalledProcessError) as exception:
-                raise DroneException(
-                    f"Could not create virtual environment: {venv_path}"
-                ) from exception
-
-            python_executable = self._resolve_python_executable(venv_path)
-
         if python_executable is None:
             raise DroneException(f"Invalid virtual environment path: {venv_path}")
+
+        reject_symlink_component(
+            python_executable, base_path, "Virtual environment interpreter"
+        )
 
         runner.logger.info("Using virtual environment: %s", venv_path)
         runner.set_runner(str(python_executable))

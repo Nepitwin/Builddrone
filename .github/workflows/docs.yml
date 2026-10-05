@@ -41,7 +41,16 @@ jobs:
           fi
 
       - name: Reject unexpected packages
-        run: bash .github/scripts/reject-unexpected-packages.sh
+        env:
+          GITHUB_TOKEN: ""
+        run: |
+          set -euo pipefail
+          while IFS='=' read -r name _; do
+            case "${name}" in
+              GITHUB_TOKEN|ACTIONS_*) unset "${name}" ;;
+            esac
+          done < <(env)
+          bash .github/scripts/reject-unexpected-packages.sh
 
       - name: Setup Python
         uses: actions/setup-python@v7
