@@ -1,7 +1,13 @@
 """Python linting module."""
 
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
+from builddrone.path_safety import reject_symlink_component
 from builddrone.runner import Runner
 
 
@@ -38,12 +44,49 @@ class PylintModule(BaseModule):  # pylint: disable=too-few-public-methods
         ):
             raise DroneException("Ignore must be a list of non-empty strings")
 
+        base_path = Path(runner.get_base_path())
+        ignore_names = set(ignore)
+        for target in [*paths, *files]:
+            self._reject_lint_target(target, base_path, ignore_names)
+
         command = ["-m", "pylint"]
         if ignore:
             command.extend(["--ignore", ",".join(ignore)])
         command.extend([*paths, *files])
 
-        exit_code = runner.run(command, cwd=str(runner.get_base_path()))
+        exit_code = runner.run(command, cwd=str(base_path))
 
         if exit_code != 0:
             raise DroneException(f"Pylint failed with exit code {exit_code}")
+
+    def _reject_lint_target(
+        self, target: str, base_path: Path, ignore_names: set[str]
+    ) -> None:
+        resolved = self._resolve_path(target, base_path)
+        reject_symlink_component(resolved, base_path, "Pylint path")
+        if resolved.is_dir():
+            self._reject_walked_symlinks(resolved, base_path, ignore_names)
+
+    @staticmethod
+    def _resolve_path(path: str, base_path: Path) -> Path:
+        resolved = Path(path)
+        if not os.path.isabs(path):
+            resolved = base_path / resolved
+        return resolved
+
+    @staticmethod
+    def _reject_walked_symlinks(
+        directory: Path, base_path: Path, ignore_names: set[str]
+    ) -> None:
+        for root, dir_names, file_names in os.walk(directory, followlinks=False):
+            dir_names[:] = [name for name in dir_names if name not in ignore_names]
+            for dir_name in dir_names:
+                reject_symlink_component(
+                    Path(root) / dir_name, base_path, "Pylint path"
+                )
+            for file_name in file_names:
+                if file_name in ignore_names:
+                    continue
+                reject_symlink_component(
+                    Path(root) / file_name, base_path, "Pylint path"
+                )
