@@ -1,13 +1,27 @@
 """Tests for the Builddrone runner."""
 
 import logging
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
+import venv
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.runner import Runner, configure_logging
+from builddrone.runner import (  # pylint: disable=protected-access
+    _SAFE_MODULE_LAUNCHER,
+    Runner,
+    _python_command,
+    configure_logging,
+)
+
+_SHADOW_MODULE = """\
+open('pwned', 'w', encoding='utf-8').write('leaked')
+raise SystemExit(86)
+"""
 
 
 class TestRunner(unittest.TestCase):
@@ -150,29 +164,160 @@ class TestRunner(unittest.TestCase):
             stderr=subprocess.STDOUT,
         )
 
+    @patch("builddrone.runner.sys.version_info", (3, 11, 0))
     @patch("builddrone.runner.subprocess.run")
     @patch("builddrone.runner.sys.executable", "C:/Python/python.exe")
     @patch("builddrone.runner.configure_logging")
     @patch("builddrone.runner.logging.getLogger")
-    def test_run_executes_python_command(
+    def test_run_module_inserts_safe_path_flag(
         self, mock_get_logger, _mock_configure_logging, mock_subprocess_run
     ):
-        """run should execute the configured interpreter with stderr on stdout."""
+        """Python 3.11+ module runs pass -P before -m."""
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
-        mock_result = MagicMock(returncode=7)
-        mock_subprocess_run.return_value = mock_result
+        mock_subprocess_run.return_value = MagicMock(returncode=7)
+
+        runner = Runner()
+        exit_code = runner.run(
+            ["-m", "pip", "install", "-r", "requirements.txt"], cwd="C:/repo"
+        )
+
+        self.assertEqual(exit_code, 7)
+        mock_subprocess_run.assert_called_once_with(
+            [
+                "C:/Python/python.exe",
+                "-P",
+                "-m",
+                "pip",
+                "install",
+                "-r",
+                "requirements.txt",
+            ],
+            cwd="C:/repo",
+            check=False,
+            stderr=subprocess.STDOUT,
+        )
+
+    @patch("builddrone.runner.sys.version_info", (3, 10, 11))
+    @patch("builddrone.runner.subprocess.run")
+    @patch("builddrone.runner.sys.executable", "C:/Python/python.exe")
+    @patch("builddrone.runner.configure_logging")
+    @patch("builddrone.runner.logging.getLogger")
+    def test_run_module_scrubs_path_before_python_311(
+        self, mock_get_logger, _mock_configure_logging, mock_subprocess_run
+    ):
+        """Python 3.8–3.10 drop the working directory before runpy."""
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        mock_subprocess_run.return_value = MagicMock(returncode=7)
 
         runner = Runner()
         exit_code = runner.run(["-m", "pylint", "src/builddrone"], cwd="C:/repo")
 
         self.assertEqual(exit_code, 7)
         mock_subprocess_run.assert_called_once_with(
-            ["C:/Python/python.exe", "-m", "pylint", "src/builddrone"],
+            [
+                "C:/Python/python.exe",
+                "-S",
+                "-c",
+                _SAFE_MODULE_LAUNCHER,
+                "pylint",
+                "src/builddrone",
+            ],
             cwd="C:/repo",
             check=False,
             stderr=subprocess.STDOUT,
         )
+
+    def test_python_command_leaves_scripts_unchanged(self):
+        """Script execution does not gain -P or the module launcher."""
+        self.assertEqual(
+            _python_command("C:/Python/python.exe", ["tool.py"], (3, 12, 0)),
+            ["C:/Python/python.exe", "tool.py"],
+        )
+        self.assertNotIn(
+            "-I",
+            _python_command("C:/Python/python.exe", ["-m", "pip"], (3, 11, 0)),
+        )
+
+    def test_safe_launcher_ignores_workspace_modules(self):
+        """The 3.8–3.10 launcher runs the installed module, not a workspace file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._plant_shadow_modules(root)
+            nested = root / "nested"
+            nested.mkdir()
+            env = os.environ.copy()
+            env["PYTHONPATH"] = os.pathsep.join((str(root), str(nested / "..")))
+
+            result = subprocess.run(
+                [sys.executable, "-S", "-c", _SAFE_MODULE_LAUNCHER, "calendar", "1999"],
+                cwd=root,
+                env=env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("1999", result.stdout)
+            self.assertNotIn("leaked", result.stdout)
+            self.assertFalse((root / "pwned").exists())
+
+    def test_run_ignores_workspace_module_after_venv(self):
+        """A root pip.py does not run when the venv interpreter installs packages."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._plant_shadow_modules(root)
+            venv_path = root / ".venv"
+            venv.create(venv_path, with_pip=True, symlinks=False)
+            python_executable = self._venv_python(venv_path)
+
+            runner = Runner()
+            runner.set_runner(str(python_executable))
+            exit_code = runner.run(["-m", "pip", "--version"], cwd=str(root))
+
+            self.assertEqual(exit_code, 0)
+            self.assertFalse((root / "pwned").exists())
+
+    def test_run_script_returns_exit_code(self):
+        """Running a source file still returns that file's exit code."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            script = Path(temp_dir) / "tool.py"
+            script.write_text("raise SystemExit(5)\n", encoding="utf-8")
+
+            runner = Runner()
+            exit_code = runner.run([str(script)], cwd=temp_dir)
+
+        self.assertEqual(exit_code, 5)
+
+    @staticmethod
+    def _plant_shadow_modules(root: Path) -> None:
+        """Plant workspace files that would shadow python -m targets."""
+        for name in (
+            "pip.py",
+            "build.py",
+            "pylint.py",
+            "twine.py",
+            "robot.py",
+            "calendar.py",
+            "site.py",
+            "os.py",
+            "runpy.py",
+        ):
+            (root / name).write_text(_SHADOW_MODULE, encoding="utf-8")
+
+    @staticmethod
+    def _venv_python(venv_path: Path) -> Path:
+        """Return the interpreter created inside a virtual environment."""
+        candidates = (
+            venv_path / "Scripts" / "python.exe",
+            venv_path / "bin" / "python",
+        )
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        raise AssertionError(f"virtual environment has no interpreter: {venv_path}")
 
     def test_record_failure_tracks_deferred_failures(self):
         """record_failure should log and retain messages for later reporting."""
