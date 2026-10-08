@@ -25,10 +25,12 @@ the version selector on the site to browse a specific release:
 The `latest` alias always points at the most recently published release.
 
 Documentation is published with [mike](https://github.com/jimporter/mike) when a
-release tag is pushed. The Docs workflow updates the `gh-pages` branch and
-deploys that site with GitHub Actions. In the repository Pages settings, set
-the source to **GitHub Actions**. To backfill docs for an older release, run
-the **Docs** workflow manually and provide the tag name.
+release tag is pushed. The Docs workflow stores version history on the
+`docs-versions` branch and deploys the site with GitHub Actions. In the
+repository Pages settings, set the source to **GitHub Actions**. A push to
+`gh-pages` starts GitHub's built-in pages build and deployment workflow in
+addition to that deploy. To backfill docs for an older release, run the
+**Docs** workflow manually and provide the tag name.
 
 To build the documentation locally:
 
