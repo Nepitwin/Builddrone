@@ -106,14 +106,47 @@ jobs:
             --alias-type=redirect \
             "${RELEASE_VERSION}" latest
           mike set-default --ignore-remote-status latest
+          # Capture gh-pages before the token exists. The bundle does not
+          # include hooks or config planted by the documentation build.
+          git -c core.hooksPath=/dev/null bundle create \
+            "${RUNNER_TEMP}/gh-pages.bundle" refs/heads/gh-pages
 
       - name: Push documentation
+        working-directory: ${{ runner.temp }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          PATH: /usr/sbin:/usr/bin:/sbin:/bin
         run: |
           set -euo pipefail
+          # Push from a repository that never executed project code. Build-step
+          # hooks, hooksPath, and git config must not be able to read the token.
+          unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_NAMESPACE \
+            GIT_CONFIG_PARAMETERS GIT_EXEC_PATH || true
+          while IFS='=' read -r name _; do
+            case "${name}" in
+              GIT_CONFIG_KEY_*|GIT_CONFIG_VALUE_*) unset "${name}" ;;
+            esac
+          done < <(env)
+          export GIT_CONFIG_COUNT=0
+          export GIT_CONFIG_NOSYSTEM=1
+          work="$(mktemp -d)"
+          empty="${work}/gitconfig"
+          : > "${empty}"
+          export GIT_CONFIG_GLOBAL="${empty}"
+          export GIT_CONFIG_SYSTEM="${empty}"
+          git clone --bare "${RUNNER_TEMP}/gh-pages.bundle" "${work}/repo.git"
+          cd "${work}/repo.git"
+          rm -rf hooks
+          mkdir hooks
+          git config --local core.hooksPath "${PWD}/hooks"
           trap 'git config --local --unset-all http.https://github.com/.extraheader || true' EXIT
           basic="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
           git config --local http.https://github.com/.extraheader \
             "AUTHORIZATION: basic ${basic}"
-          git push origin refs/heads/gh-pages:refs/heads/gh-pages
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git push --no-verify origin "refs/heads/gh-pages:refs/heads/gh-pages"
