@@ -284,20 +284,6 @@ jobs:
           pytest
 
 
-  docs:
-    name: Deploy documentation
-    needs:
-      - black
-      - isort
-      - pylint
-      - pytest
-    if: startsWith(github.ref, 'refs/tags/')
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/docs.yml
-
   build:
     name: Build package
     runs-on: ubuntu-24.04
@@ -307,20 +293,6 @@ jobs:
       - isort
       - pylint
       - pytest
-      - docs
-    if: >-
-      !cancelled() &&
-      needs.black.result == 'success' &&
-      needs.isort.result == 'success' &&
-      needs.pylint.result == 'success' &&
-      needs.pytest.result == 'success' &&
-      (
-        needs.docs.result == 'success' ||
-        (
-          needs.docs.result == 'skipped' &&
-          !startsWith(github.ref, 'refs/tags/')
-        )
-      )
 
     steps:
       - name: Checkout repository
@@ -400,11 +372,9 @@ jobs:
 
     needs:
       - build
-      - docs
     if: >-
       !cancelled() &&
       startsWith(github.ref, 'refs/tags/') &&
-      needs.docs.result == 'success' &&
       needs.build.result == 'success'
     permissions:
       id-token: write
@@ -419,3 +389,18 @@ jobs:
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+
+  docs:
+    name: Deploy documentation
+    needs:
+      - publish
+    if: >-
+      !cancelled() &&
+      startsWith(github.ref, 'refs/tags/') &&
+      needs.publish.result == 'success'
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yml
