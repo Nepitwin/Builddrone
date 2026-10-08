@@ -5,8 +5,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -18,15 +16,6 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      # mike version history must not live on gh-pages. A push to that branch
-      # starts GitHub's built-in "pages build and deployment" workflow.
-      DOCS_BRANCH: docs-versions
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -110,20 +99,13 @@ jobs:
               GITHUB_TOKEN|ACTIONS_*) unset "${name}" ;;
             esac
           done < <(env)
-          if [ -z "${DOCS_BRANCH}" ]; then
-            echo "DOCS_BRANCH is required." >&2
-            exit 1
-          fi
-          if git show-ref --verify --quiet "refs/remotes/origin/${DOCS_BRANCH}"; then
-            git update-ref "refs/heads/${DOCS_BRANCH}" "refs/remotes/origin/${DOCS_BRANCH}"
-          elif git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
-            git update-ref "refs/heads/${DOCS_BRANCH}" refs/remotes/origin/gh-pages
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git update-ref refs/heads/gh-pages refs/remotes/origin/gh-pages
           fi
           mike deploy --ignore-remote-status --update-aliases \
             --alias-type=redirect \
-            --branch "${DOCS_BRANCH}" \
             "${RELEASE_VERSION}" latest
-          mike set-default --ignore-remote-status --branch "${DOCS_BRANCH}" latest
+          mike set-default --ignore-remote-status latest
 
       - name: Push documentation
         env:
@@ -134,32 +116,4 @@ jobs:
           basic="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
           git config --local http.https://github.com/.extraheader \
             "AUTHORIZATION: basic ${basic}"
-          if [ -z "${DOCS_BRANCH}" ]; then
-            echo "DOCS_BRANCH is required." >&2
-            exit 1
-          fi
-          git push origin "refs/heads/${DOCS_BRANCH}:refs/heads/${DOCS_BRANCH}"
-
-      - name: Export published site
-        run: |
-          set -euo pipefail
-          rm -rf _site
-          mkdir -p _site
-          if [ -z "${DOCS_BRANCH}" ]; then
-            echo "DOCS_BRANCH is required." >&2
-            exit 1
-          fi
-          git archive "refs/heads/${DOCS_BRANCH}" | tar -x -C _site
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: _site
-          include-hidden-files: "true"
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+          git push origin refs/heads/gh-pages:refs/heads/gh-pages
