@@ -174,6 +174,29 @@ class Runner:
         )
         return result.returncode
 
+    def run_command(self, cmd, cwd=None) -> int:
+        """Execute an external command and return the exit code.
+
+        ``cmd`` is a list of arguments and is not run through a shell. Child
+        stderr is merged into stdout so informational tool output is not
+        treated as a PowerShell error.
+        """
+        if not isinstance(cmd, list) or not cmd:
+            raise DroneException("Command must be a non-empty list")
+
+        for part in cmd:
+            if not isinstance(part, str) or part == "":
+                raise DroneException("Command must contain non-empty strings")
+
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            check=False,
+            shell=False,
+            stderr=subprocess.STDOUT,
+        )
+        return result.returncode
+
     def reset_failures(self) -> None:
         """Clear recorded deferred failures."""
         self._failures.clear()

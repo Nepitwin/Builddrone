@@ -10,8 +10,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.robotframework.rebot_module import RobotframeworkRebotModule
-from builddrone.module.robotframework.test_module import RobotframeworkTestModule
+from builddrone.module.robotframework.robotframework_rebot_module import (
+    RobotframeworkRebotModule,
+)
+from builddrone.module.robotframework.robotframework_test_module import (
+    RobotframeworkTestModule,
+)
 from builddrone.runner import Runner
 
 _MODULES = (RobotframeworkTestModule, RobotframeworkRebotModule)

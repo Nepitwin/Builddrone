@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.python.venv_module import PythonVirtualEnvironmentModule
+from builddrone.module.python.python_venv_module import PythonVirtualEnvironmentModule
 from builddrone.runner import Runner
 
 
@@ -46,7 +46,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
             str(context.exception), "No source provided for virtual environment"
         )
 
-    @patch("builddrone.module.python.venv_module.venv.create")
+    @patch("builddrone.module.python.python_venv_module.venv.create")
     def test_run_creates_fresh_venv(self, create_venv):
         """Always create a virtual environment instead of reusing a pre-seeded one."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -79,7 +79,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
         self.mock_runner.set_runner.assert_called_once_with(str(python_executable))
         self.mock_runner.reset_runner.assert_not_called()
 
-    @patch("builddrone.module.python.venv_module.venv.create")
+    @patch("builddrone.module.python.python_venv_module.venv.create")
     def test_run_resolves_relative_source_from_runner_base_path(self, create_venv):
         """Resolve a relative environment from the blueprint directory."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -102,7 +102,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
         self.mock_runner.get_base_path.assert_called()
         self.mock_runner.set_runner.assert_called_once_with(str(python_executable))
 
-    @patch("builddrone.module.python.venv_module.venv.create")
+    @patch("builddrone.module.python.python_venv_module.venv.create")
     def test_run_sets_runner_from_windows_venv_root(self, create_venv):
         """Resolve the interpreter from a Windows-style venv root."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -120,7 +120,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
 
         self.mock_runner.set_runner.assert_called_once_with(str(python_executable))
 
-    @patch("builddrone.module.python.venv_module.venv.create")
+    @patch("builddrone.module.python.python_venv_module.venv.create")
     def test_run_with_invalid_venv_path_raises(self, create_venv):
         """Reject a path when virtual environment creation fails."""
         create_venv.side_effect = OSError("permission denied")
@@ -134,7 +134,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
             f"Could not create virtual environment: {Path.cwd() / 'missing/.venv'}",
         )
 
-    @patch("builddrone.module.python.venv_module.venv.create")
+    @patch("builddrone.module.python.python_venv_module.venv.create")
     def test_run_rejects_missing_interpreter_after_create(self, create_venv):
         """Reject a path when creation succeeds but no interpreter is found."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -201,7 +201,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
         )
         self.mock_runner.set_runner.assert_not_called()
 
-    @patch("builddrone.module.python.venv_module.venv.create")
+    @patch("builddrone.module.python.python_venv_module.venv.create")
     def test_run_rejects_symlink_interpreter(self, create_venv):
         """Reject an interpreter path that is a symlink before set_runner."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -231,7 +231,7 @@ class TestPythonVirtualEnvironmentModule(unittest.TestCase):
         )
         self.mock_runner.set_runner.assert_not_called()
 
-    @patch("builddrone.module.python.venv_module.venv.create")
+    @patch("builddrone.module.python.python_venv_module.venv.create")
     def test_run_rejects_symlink_interpreter_when_symlinks_unavailable(
         self, create_venv
     ):

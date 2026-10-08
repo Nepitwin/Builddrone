@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.robotframework.rebot_module import (
+from builddrone.module.robotframework.robotframework_rebot_module import (
     RobotframeworkRebotModule,
 )
 from builddrone.runner import Runner

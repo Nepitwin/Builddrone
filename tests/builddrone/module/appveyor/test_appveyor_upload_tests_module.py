@@ -12,7 +12,9 @@ from unittest.mock import MagicMock, mock_open, patch
 from urllib.error import HTTPError, URLError
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.appveyor.upload_tests_module import AppveyorUploadTestsModule
+from builddrone.module.appveyor.appveyor_upload_tests_module import (
+    AppveyorUploadTestsModule,
+)
 from builddrone.runner import Runner
 
 
@@ -51,7 +53,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         mock_response.__exit__.return_value = False
         return mock_response
 
-    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.urlopen")
     def test_run_uploads_relative_sources(self, mock_urlopen):
         """Upload relative results paths successfully."""
         mock_urlopen.return_value = self._mock_response()
@@ -78,7 +80,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
             300,
         )
 
-    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.urlopen")
     def test_run_uploads_multiple_sources(self, mock_urlopen):
         """Upload each configured results file."""
         mock_urlopen.return_value = self._mock_response()
@@ -107,7 +109,7 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         self.assertTrue(any(b"<assembly name='xunit'/>" in data for data in payloads))
         self.assertTrue(any(b"<testsuite name='junit'/>" in data for data in payloads))
 
-    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.urlopen")
     def test_run_uploads_absolute_sources(self, mock_urlopen):
         """Upload absolute results paths successfully."""
         mock_urlopen.return_value = self._mock_response()
@@ -320,8 +322,8 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
             f"Test results file must not be a symlink: {results_dir}",
         )
 
-    @patch("builddrone.module.appveyor.upload_tests_module.time.sleep")
-    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.time.sleep")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.urlopen")
     def test_run_retries_then_succeeds(self, mock_urlopen, mock_sleep):
         """Retry after failure and succeed on a later attempt."""
         mock_urlopen.side_effect = [
@@ -341,8 +343,8 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
         self.assertEqual(mock_urlopen.call_count, 2)
         mock_sleep.assert_called_once_with(7)
 
-    @patch("builddrone.module.appveyor.upload_tests_module.time.sleep")
-    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.time.sleep")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.urlopen")
     def test_run_fails_after_repeat_exhausted(self, mock_urlopen, mock_sleep):
         """Fail after the configured number of attempts."""
         mock_urlopen.side_effect = URLError("still failing")
@@ -364,8 +366,8 @@ class TestAppveyorUploadTestsModule(unittest.TestCase):
             str(context.exception),
         )
 
-    @patch("builddrone.module.appveyor.upload_tests_module.time.sleep")
-    @patch("builddrone.module.appveyor.upload_tests_module.urlopen")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.time.sleep")
+    @patch("builddrone.module.appveyor.appveyor_upload_tests_module.urlopen")
     def test_run_defaults_to_single_attempt(self, mock_urlopen, mock_sleep):
         """Use a single attempt when repeat is omitted."""
         mock_urlopen.side_effect = HTTPError(

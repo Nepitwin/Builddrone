@@ -291,6 +291,50 @@ class TestRunner(unittest.TestCase):
 
         self.assertEqual(exit_code, 5)
 
+    @patch("builddrone.runner.subprocess.run")
+    @patch("builddrone.runner.sys.executable", "C:/Python/python.exe")
+    @patch("builddrone.runner.configure_logging")
+    @patch("builddrone.runner.logging.getLogger")
+    def test_run_command_executes_without_a_shell(
+        self, mock_get_logger, _mock_configure_logging, mock_subprocess_run
+    ):
+        """External commands keep their arguments and do not use a shell."""
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+        mock_subprocess_run.return_value = MagicMock(returncode=3)
+
+        runner = Runner()
+        exit_code = runner.run_command(["dotnet", "build", "App.csproj"], cwd="C:/repo")
+
+        self.assertEqual(exit_code, 3)
+        mock_subprocess_run.assert_called_once_with(
+            ["dotnet", "build", "App.csproj"],
+            cwd="C:/repo",
+            check=False,
+            shell=False,
+            stderr=subprocess.STDOUT,
+        )
+
+    def test_run_command_rejects_empty_command(self):
+        """Reject a command that has no arguments."""
+        runner = Runner()
+
+        with self.assertRaises(DroneException) as context:
+            runner.run_command([])
+
+        self.assertEqual(str(context.exception), "Command must be a non-empty list")
+
+    def test_run_command_rejects_blank_argument(self):
+        """Reject a command argument that is an empty string."""
+        runner = Runner()
+
+        with self.assertRaises(DroneException) as context:
+            runner.run_command(["dotnet", ""])
+
+        self.assertEqual(
+            str(context.exception), "Command must contain non-empty strings"
+        )
+
     @staticmethod
     def _plant_shadow_modules(root: Path) -> None:
         """Plant workspace files that would shadow python -m targets."""

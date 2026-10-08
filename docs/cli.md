@@ -14,6 +14,7 @@ Replace `<stage>` with a top-level key from `blueprint.json`, for example
 | Example | Command |
 | --- | --- |
 | [Python](examples/python.md) | `python -m builddrone build` |
+| [.NET](examples/dotnet.md) | `python -m builddrone build` |
 | [Robot Framework](examples/robotframework.md) | `python -m builddrone test` |
 | [Archiver](examples/archiver.md) | `python -m builddrone archive` |
 | [AppVeyor](examples/appveyor.md) | `python -m builddrone upload` |

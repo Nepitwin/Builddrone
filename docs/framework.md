@@ -34,7 +34,9 @@ The custom module can then be used in `blueprint.json`:
 
 Every module receives a `Runner` and a dictionary of arguments. The runner
 executes commands with the currently selected Python interpreter and exposes
-the blueprint's base directory for relative paths.
+the blueprint's base directory for relative paths. Modules that call an
+external program use `runner.run_command`, which runs a list of arguments
+without a shell.
 
 Implement `run(self, runner: Runner, args: dict) -> None` on a subclass of
 `BaseModule`. Raise `DroneException` to stop the stage with a clear error
@@ -52,6 +54,12 @@ already present in the constructor dictionary:
 | `archiver` |
 | `filesystem.cleanup` |
 | `filesystem.copy` |
+| `dotnet.clean` |
+| `dotnet.restore` |
+| `dotnet.build` |
+| `dotnet.pack` |
+| `dotnet.nuget.push` |
+| `dotnet.test` |
 | `python.build` |
 | `python.install` |
 | `python.run` |

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Builddrone.DotnetExample/Builddrone.DotnetExample.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Builddrone.DotnetExample.NUnitTests/Builddrone.DotnetExample.NUnitTests.csproj" />
+    <Project Path="tests/Builddrone.DotnetExample.XUnitTests/Builddrone.DotnetExample.XUnitTests.csproj" />
+  </Folder>
+</Solution>

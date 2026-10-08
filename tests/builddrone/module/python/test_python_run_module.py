@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.python.run_module import PythonRunModule
+from builddrone.module.python.python_run_module import PythonRunModule
 from builddrone.runner import Runner
 
 

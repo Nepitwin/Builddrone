@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.filesystem.cleanup_module import CleanupModule
+from builddrone.module.filesystem.filesystem_cleanup_module import CleanupModule
 from builddrone.runner import Runner
 
 
@@ -87,7 +87,7 @@ class TestCleanupModule(unittest.TestCase):
 
         self.mock_runner.logger.info.assert_called_with("Cleaning up...")
 
-    @patch("builddrone.module.filesystem.cleanup_module.os.remove")
+    @patch("builddrone.module.filesystem.filesystem_cleanup_module.os.remove")
     def test_delete_files_with_exception(self, mock_remove):
         """Surface file-deletion failures through DroneException."""
         mock_remove.side_effect = PermissionError("Permission denied")
@@ -105,7 +105,7 @@ class TestCleanupModule(unittest.TestCase):
             f"Error deleting file {self.test_file} : Permission denied"
         )
 
-    @patch("builddrone.module.filesystem.cleanup_module.shutil.rmtree")
+    @patch("builddrone.module.filesystem.filesystem_cleanup_module.shutil.rmtree")
     def test_delete_folders_with_exception(self, mock_rmtree):
         """Surface folder-deletion failures through DroneException."""
         mock_rmtree.side_effect = PermissionError("Permission denied")

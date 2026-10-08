@@ -1,0 +1,84 @@
+{
+    "build": [
+        {
+            "module": "dotnet.restore",
+            "args": {
+                "project": "Builddrone.DotnetExample.slnx"
+            }
+        },
+        {
+            "module": "dotnet.build",
+            "args": {
+                "project": "Builddrone.DotnetExample.slnx",
+                "configuration": "Release",
+                "no_restore": true
+            }
+        },
+        {
+            "module": "dotnet.test",
+            "args": {
+                "project": "tests/Builddrone.DotnetExample.NUnitTests/Builddrone.DotnetExample.NUnitTests.csproj",
+                "environment": "nunit",
+                "configuration": "Release",
+                "no_restore": true,
+                "results_directory": "results/nunit"
+            }
+        },
+        {
+            "module": "dotnet.test",
+            "args": {
+                "project": "tests/Builddrone.DotnetExample.XUnitTests/Builddrone.DotnetExample.XUnitTests.csproj",
+                "environment": "xunit",
+                "configuration": "Release",
+                "no_restore": true,
+                "results_directory": "results/xunit"
+            }
+        },
+        {
+            "module": "dotnet.pack",
+            "args": {
+                "project": "src/Builddrone.DotnetExample/Builddrone.DotnetExample.csproj",
+                "configuration": "Release",
+                "output": "artifacts",
+                "no_restore": true
+            }
+        }
+    ],
+    "deploy": [
+        {
+            "module": "dotnet.nuget.push",
+            "args": {
+                "packages": ["artifacts/*.nupkg"],
+                "source": "https://api.nuget.org/v3/index.json",
+                "api_key_env": "NUGET_API_KEY",
+                "skip_duplicate": true
+            }
+        }
+    ],
+    "clean": [
+        {
+            "module": "dotnet.clean",
+            "args": {
+                "project": "Builddrone.DotnetExample.slnx",
+                "configuration": "Release"
+            }
+        }
+    ],
+    "cleanup": [
+        {
+            "module": "filesystem.cleanup",
+            "args": {
+                "folders": [
+                    "artifacts",
+                    "results",
+                    "src/Builddrone.DotnetExample/bin",
+                    "src/Builddrone.DotnetExample/obj",
+                    "tests/Builddrone.DotnetExample.NUnitTests/bin",
+                    "tests/Builddrone.DotnetExample.NUnitTests/obj",
+                    "tests/Builddrone.DotnetExample.XUnitTests/bin",
+                    "tests/Builddrone.DotnetExample.XUnitTests/obj"
+                ]
+            }
+        }
+    ]
+}
