@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.twine.upload_module import TwineUploadModule
+from builddrone.module.twine.twine_upload_module import TwineUploadModule
 from builddrone.runner import Runner
 
 

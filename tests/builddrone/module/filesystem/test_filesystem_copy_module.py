@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.filesystem.copy_module import FilesystemCopyModule
+from builddrone.module.filesystem.filesystem_copy_module import FilesystemCopyModule
 from builddrone.runner import Runner
 
 
@@ -155,8 +155,8 @@ class TestFilesystemCopyModule(unittest.TestCase):
             f"Source is not a directory: {self.source_file}",
         )
 
-    @patch("builddrone.module.filesystem.copy_module.shutil.copy2")
-    @patch("builddrone.module.filesystem.copy_module.os.makedirs")
+    @patch("builddrone.module.filesystem.filesystem_copy_module.shutil.copy2")
+    @patch("builddrone.module.filesystem.filesystem_copy_module.os.makedirs")
     def test_run_with_copy_exception(self, _mock_makedirs, mock_copy2):
         """Surface copy failures through DroneException."""
         mock_copy2.side_effect = PermissionError("Permission denied")

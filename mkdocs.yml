@@ -36,11 +36,13 @@ nav:
       - AppVeyor: modules/appveyor.md
       - Archiver: modules/archiver.md
       - Filesystem: modules/filesystem.md
+      - .NET: modules/dotnet.md
       - Python: modules/python.md
       - Robot Framework: modules/robotframework.md
       - Twine: modules/twine.md
   - Examples:
       - Python: examples/python.md
+      - .NET: examples/dotnet.md
       - Robot Framework: examples/robotframework.md
       - Archiver: examples/archiver.md
       - AppVeyor: examples/appveyor.md

@@ -51,7 +51,11 @@ line_length = 88
 pythonpath = [
     "src"
 ]
+testpaths = [
+    "tests"
+]
 
 
 [tool.pylint.main]
-init-hook = "import sys; sys.path.insert(0, 'src')"
+source-roots = [".", "src", "tests/builddrone/module/dotnet"]
+init-hook = "import sys; sys.path[:0] = ['.', 'src', 'tests/builddrone/module/dotnet']"

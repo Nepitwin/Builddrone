@@ -7,23 +7,35 @@ from pathlib import Path
 
 from builddrone.base_module import BaseModule
 from builddrone.drone_exception import DroneException
-from builddrone.module.appveyor.upload_artifact_module import (
+from builddrone.module.appveyor.appveyor_upload_artifact_module import (
     AppveyorUploadArtifactModule,
 )
-from builddrone.module.appveyor.upload_tests_module import AppveyorUploadTestsModule
+from builddrone.module.appveyor.appveyor_upload_tests_module import (
+    AppveyorUploadTestsModule,
+)
 from builddrone.module.archiver.archiver_module import ArchiverModule
-from builddrone.module.filesystem.cleanup_module import (
+from builddrone.module.dotnet.dotnet_build_module import DotnetBuildModule
+from builddrone.module.dotnet.dotnet_clean_module import DotnetCleanModule
+from builddrone.module.dotnet.dotnet_nuget_push_module import DotnetNugetPushModule
+from builddrone.module.dotnet.dotnet_pack_module import DotnetPackModule
+from builddrone.module.dotnet.dotnet_restore_module import DotnetRestoreModule
+from builddrone.module.dotnet.dotnet_test_module import DotnetTestModule
+from builddrone.module.filesystem.filesystem_cleanup_module import (
     CleanupModule as FilesystemCleanupModule,
 )
-from builddrone.module.filesystem.copy_module import FilesystemCopyModule
-from builddrone.module.python.build_module import PythonBuildModule
-from builddrone.module.python.install_module import PythonInstallModule
-from builddrone.module.python.pylint_module import PylintModule
-from builddrone.module.python.run_module import PythonRunModule
-from builddrone.module.python.venv_module import PythonVirtualEnvironmentModule
-from builddrone.module.robotframework.rebot_module import RobotframeworkRebotModule
-from builddrone.module.robotframework.test_module import RobotframeworkTestModule
-from builddrone.module.twine.upload_module import TwineUploadModule
+from builddrone.module.filesystem.filesystem_copy_module import FilesystemCopyModule
+from builddrone.module.python.python_build_module import PythonBuildModule
+from builddrone.module.python.python_install_module import PythonInstallModule
+from builddrone.module.python.python_pylint_module import PylintModule
+from builddrone.module.python.python_run_module import PythonRunModule
+from builddrone.module.python.python_venv_module import PythonVirtualEnvironmentModule
+from builddrone.module.robotframework.robotframework_rebot_module import (
+    RobotframeworkRebotModule,
+)
+from builddrone.module.robotframework.robotframework_test_module import (
+    RobotframeworkTestModule,
+)
+from builddrone.module.twine.twine_upload_module import TwineUploadModule
 from builddrone.runner import Runner
 
 
@@ -45,6 +57,12 @@ class ExecutionEngine:  # pylint: disable=too-few-public-methods
         self._register_module("archiver", ArchiverModule())
         self._register_module("filesystem.cleanup", FilesystemCleanupModule())
         self._register_module("filesystem.copy", FilesystemCopyModule())
+        self._register_module("dotnet.build", DotnetBuildModule())
+        self._register_module("dotnet.clean", DotnetCleanModule())
+        self._register_module("dotnet.nuget.push", DotnetNugetPushModule())
+        self._register_module("dotnet.pack", DotnetPackModule())
+        self._register_module("dotnet.restore", DotnetRestoreModule())
+        self._register_module("dotnet.test", DotnetTestModule())
         self._register_module("python.build", PythonBuildModule())
         self._register_module("python.install", PythonInstallModule())
         self._register_module("python.run", PythonRunModule())

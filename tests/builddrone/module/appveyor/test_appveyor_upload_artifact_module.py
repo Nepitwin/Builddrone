@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from builddrone.drone_exception import DroneException
-from builddrone.module.appveyor.upload_artifact_module import (
+from builddrone.module.appveyor.appveyor_upload_artifact_module import (
     AppveyorUploadArtifactModule,
 )
 from builddrone.runner import Runner
@@ -36,7 +36,7 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
+    @patch("builddrone.module.appveyor.appveyor_upload_artifact_module.subprocess.run")
     def test_run_uploads_relative_files(self, mock_run):
         """Upload relative artifact paths with Push-AppveyorArtifact."""
         mock_run.return_value = MagicMock(returncode=0)
@@ -56,7 +56,7 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
             self.temp_dir,
         )
 
-    @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
+    @patch("builddrone.module.appveyor.appveyor_upload_artifact_module.subprocess.run")
     def test_run_uploads_multiple_files(self, mock_run):
         """Upload each configured artifact file."""
         second_artifact = os.path.join(self.temp_dir, "debug.log")
@@ -68,7 +68,7 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
 
         self.assertEqual(mock_run.call_count, 2)
 
-    @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
+    @patch("builddrone.module.appveyor.appveyor_upload_artifact_module.subprocess.run")
     def test_run_uploads_absolute_files(self, mock_run):
         """Upload absolute artifact paths successfully."""
         mock_run.return_value = MagicMock(returncode=0)
@@ -77,7 +77,7 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
 
         mock_run.assert_called_once()
 
-    @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
+    @patch("builddrone.module.appveyor.appveyor_upload_artifact_module.subprocess.run")
     def test_run_escapes_powershell_metacharacters(self, mock_run):
         """Quote artifact paths so they cannot inject PowerShell commands."""
         malicious_name = "evil'$()whoami'.zip"
@@ -222,7 +222,7 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
             f"Artifact file must not be a symlink: {artifacts_dir}",
         )
 
-    @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
+    @patch("builddrone.module.appveyor.appveyor_upload_artifact_module.subprocess.run")
     def test_run_fails_on_non_zero_exit_code(self, mock_run):
         """Surface Push-AppveyorArtifact failures."""
         mock_run.return_value = MagicMock(returncode=1)
@@ -236,7 +236,7 @@ class TestAppveyorUploadArtifactModule(unittest.TestCase):
         )
         self.assertIn("exit code 1", str(context.exception))
 
-    @patch("builddrone.module.appveyor.upload_artifact_module.subprocess.run")
+    @patch("builddrone.module.appveyor.appveyor_upload_artifact_module.subprocess.run")
     def test_run_fails_when_powershell_is_unavailable(self, mock_run):
         """Surface subprocess failures when PowerShell cannot be started."""
         mock_run.side_effect = OSError("powershell not found")

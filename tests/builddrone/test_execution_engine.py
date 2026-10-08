@@ -23,6 +23,12 @@ class TestExecutionEngine(unittest.TestCase):
             "ArchiverModule": MagicMock(),
             "FilesystemCleanupModule": MagicMock(),
             "FilesystemCopyModule": MagicMock(),
+            "DotnetBuildModule": MagicMock(),
+            "DotnetCleanModule": MagicMock(),
+            "DotnetNugetPushModule": MagicMock(),
+            "DotnetPackModule": MagicMock(),
+            "DotnetRestoreModule": MagicMock(),
+            "DotnetTestModule": MagicMock(),
             "PylintModule": MagicMock(),
             "RobotframeworkRebotModule": MagicMock(),
             "RobotframeworkTestModule": MagicMock(),
@@ -40,6 +46,12 @@ class TestExecutionEngine(unittest.TestCase):
             ArchiverModule=DEFAULT,
             FilesystemCleanupModule=DEFAULT,
             FilesystemCopyModule=DEFAULT,
+            DotnetBuildModule=DEFAULT,
+            DotnetCleanModule=DEFAULT,
+            DotnetNugetPushModule=DEFAULT,
+            DotnetPackModule=DEFAULT,
+            DotnetRestoreModule=DEFAULT,
+            DotnetTestModule=DEFAULT,
             PylintModule=DEFAULT,
             RobotframeworkRebotModule=DEFAULT,
             RobotframeworkTestModule=DEFAULT,
@@ -71,6 +83,12 @@ class TestExecutionEngine(unittest.TestCase):
             modules["filesystem.cleanup"], instances["FilesystemCleanupModule"]
         )
         self.assertIs(modules["filesystem.copy"], instances["FilesystemCopyModule"])
+        self.assertIs(modules["dotnet.build"], instances["DotnetBuildModule"])
+        self.assertIs(modules["dotnet.clean"], instances["DotnetCleanModule"])
+        self.assertIs(modules["dotnet.nuget.push"], instances["DotnetNugetPushModule"])
+        self.assertIs(modules["dotnet.pack"], instances["DotnetPackModule"])
+        self.assertIs(modules["dotnet.restore"], instances["DotnetRestoreModule"])
+        self.assertIs(modules["dotnet.test"], instances["DotnetTestModule"])
         self.assertIs(modules["python.build"], instances["PythonBuildModule"])
         self.assertIs(modules["python.install"], instances["PythonInstallModule"])
         self.assertIs(modules["python.run"], instances["PythonRunModule"])
