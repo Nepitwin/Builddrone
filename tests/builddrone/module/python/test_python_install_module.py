@@ -363,6 +363,89 @@ class TestPythonInstallModule(unittest.TestCase):
         )
         self.mock_runner.run.assert_not_called()
 
+    def test_run_rejects_requirements_include_parent_through_symlink(self):
+        """Reject an include whose symlink is hidden when '..' is normalized away."""
+        include_lines = (
+            "-r escape/../environ",
+            "-r file:escape/../environ",
+        )
+        for include_line in include_lines:
+            with self.subTest(include_line=include_line):
+                self.mock_runner.reset_mock()
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    base_path = Path(temp_dir)
+                    self.mock_runner.get_base_path.return_value = base_path
+                    escape = base_path / "escape"
+                    escape.mkdir()
+                    (base_path / "environ").write_text("build\n", encoding="utf-8")
+                    (base_path / "requirements.txt").write_text(
+                        f"{include_line}\n", encoding="utf-8"
+                    )
+                    original_is_symlink = Path.is_symlink
+
+                    def fake_is_symlink(
+                        path_self,
+                        escape=escape,
+                        original_is_symlink=original_is_symlink,
+                    ):
+                        if path_self == escape:
+                            return True
+                        return original_is_symlink(path_self)
+
+                    module = PythonInstallModule()
+                    with patch.object(Path, "is_symlink", fake_is_symlink):
+                        with self.assertRaises(DroneException) as context:
+                            module.run(
+                                self.mock_runner,
+                                {"requirements": "requirements.txt"},
+                            )
+
+                self.assertEqual(
+                    str(context.exception),
+                    f"Requirements file must not be a symlink: {escape}",
+                )
+                self.mock_runner.run.assert_not_called()
+
+    def test_run_rejects_requirements_include_outside_workspace(self):
+        """Reject an include that resolves outside the workspace."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            base_path = root / "project"
+            base_path.mkdir()
+            self.mock_runner.get_base_path.return_value = base_path
+            secret = root / "secret.txt"
+            secret.write_text("PYPI_TOKEN=secret\n", encoding="utf-8")
+            (base_path / "requirements.txt").write_text(
+                "-r ../secret.txt\n", encoding="utf-8"
+            )
+
+            module = PythonInstallModule()
+            with self.assertRaises(DroneException) as context:
+                module.run(self.mock_runner, {"requirements": "requirements.txt"})
+
+        self.assertEqual(
+            str(context.exception),
+            "Requirements file resolves outside the workspace: " f"{secret.resolve()}",
+        )
+        self.mock_runner.run.assert_not_called()
+
+    def test_run_installs_requirements_include_that_stays_inside_workspace(self):
+        """Install when a '..' include still resolves inside the workspace."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_path = Path(temp_dir)
+            self.mock_runner.get_base_path.return_value = base_path
+            self.mock_runner.run.return_value = 0
+            (base_path / "sub").mkdir()
+            (base_path / "included.txt").write_text("build\n", encoding="utf-8")
+            (base_path / "requirements.txt").write_text(
+                "-r sub/../included.txt\n", encoding="utf-8"
+            )
+
+            module = PythonInstallModule()
+            module.run(self.mock_runner, {"requirements": "requirements.txt"})
+
+        self.mock_runner.run.assert_called_once()
+
     def test_run_installs_requirements_with_regular_include(self):
         """Install when nested requirement and constraint files are regular files."""
         with tempfile.TemporaryDirectory() as temp_dir:

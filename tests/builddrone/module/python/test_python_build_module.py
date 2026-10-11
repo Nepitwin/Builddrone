@@ -157,8 +157,36 @@ class TestPythonBuildModule(unittest.TestCase):
         )
         self.mock_runner.run.assert_not_called()
 
-    def test_run_allows_symlink_inside_virtualenv(self):
-        """Build when the only symlink is inside a virtual environment."""
+    def test_run_rejects_symlink_inside_virtualenv(self):
+        """Reject a symlink inside a virtual environment a manifest can package."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_path = Path(temp_dir)
+            self.mock_runner.get_base_path.return_value = base_path
+            (base_path / "README.md").write_text("docs\n", encoding="utf-8")
+            venv = base_path / "venv"
+            venv.mkdir()
+            leak = venv / "leak.dat"
+            leak.write_text("secret\n", encoding="utf-8")
+            original_is_symlink = Path.is_symlink
+
+            def fake_is_symlink(path_self):
+                if path_self == leak:
+                    return True
+                return original_is_symlink(path_self)
+
+            module = PythonBuildModule()
+            with patch.object(Path, "is_symlink", fake_is_symlink):
+                with self.assertRaises(DroneException) as context:
+                    module.run(self.mock_runner, {})
+
+        self.assertEqual(
+            str(context.exception),
+            f"Packaged path must not be a symlink: {leak}",
+        )
+        self.mock_runner.run.assert_not_called()
+
+    def test_run_allows_regular_file_inside_virtualenv(self):
+        """Build when a virtual environment contains only regular files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             base_path = Path(temp_dir)
             self.mock_runner.get_base_path.return_value = base_path
@@ -166,18 +194,10 @@ class TestPythonBuildModule(unittest.TestCase):
             (base_path / "README.md").write_text("docs\n", encoding="utf-8")
             venv = base_path / ".venv"
             venv.mkdir()
-            link = venv / "lib64"
-            link.mkdir()
-            original_is_symlink = Path.is_symlink
-
-            def fake_is_symlink(path_self):
-                if path_self == link:
-                    return True
-                return original_is_symlink(path_self)
+            (venv / "pyvenv.cfg").write_text("home = /usr\n", encoding="utf-8")
 
             module = PythonBuildModule()
-            with patch.object(Path, "is_symlink", fake_is_symlink):
-                module.run(self.mock_runner, {})
+            module.run(self.mock_runner, {})
 
         self.mock_runner.run.assert_called_once_with(
             ["-m", "build"], cwd=str(base_path)

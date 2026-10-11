@@ -22,8 +22,22 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+        env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
 
       - name: Reject checkout symlinks
+        env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
         run: |
           set -euo pipefail
           links="$(find . -path ./.git -prune -o -type l -print)"
@@ -35,6 +49,12 @@ jobs:
 
       - name: Reject unexpected packages
         env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
           GITHUB_TOKEN: ""
         run: |
           set -euo pipefail
@@ -47,11 +67,24 @@ jobs:
 
       - name: Setup Python
         uses: actions/setup-python@v7
+        env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
         with:
           python-version: "3.12"
 
       - name: Install documentation dependencies
         env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
           GITHUB_TOKEN: ""
         run: |
           set -euo pipefail
@@ -64,6 +97,13 @@ jobs:
           pip install -e ".[docs]"
 
       - name: Configure git
+        env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -71,6 +111,12 @@ jobs:
       - name: Resolve release version
         id: version
         env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
           REF_TYPE: ${{ github.ref_type }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
@@ -90,6 +136,12 @@ jobs:
 
       - name: Build versioned documentation
         env:
+          BASH_ENV: /dev/null
+          ENV: /dev/null
+          LD_AUDIT: ""
+          LD_LIBRARY_PATH: ""
+          LD_PRELOAD: ""
+          NODE_OPTIONS: ""
           GITHUB_TOKEN: ""
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -114,12 +166,13 @@ jobs:
       - name: Push documentation
         working-directory: ${{ runner.temp }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASH_ENV: /dev/null
           ENV: /dev/null
           LD_AUDIT: ""
           LD_LIBRARY_PATH: ""
           LD_PRELOAD: ""
+          NODE_OPTIONS: ""
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PATH: /usr/sbin:/usr/bin:/sbin:/bin
         run: |
           set -euo pipefail
