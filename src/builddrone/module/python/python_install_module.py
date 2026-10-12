@@ -17,12 +17,16 @@ from builddrone.drone_exception import DroneException
 from builddrone.path_safety import reject_symlink_component
 from builddrone.runner import Runner
 
-# Pip opens nested ``-r`` / ``-c`` files while parsing a requirements file.
-# Match the line splitting in pip's requirements parser so every local file
-# it would open is checked before pip can echo a failed line into the log.
+# Pip opens nested ``-r`` / ``-c`` files and logs ``--find-links`` and ``-e``
+# values while parsing a requirements file. Match pip's line splitting so those
+# values are checked before pip can echo an expanded secret, or the contents of
+# a nested ``file://`` path reached through a remote include, into the build log.
 _SCHEME_RE = re.compile(r"^(http|https|file):", re.IGNORECASE)
+_VCS_RE = re.compile(r"^(git|hg|svn|bzr)\+", re.IGNORECASE)
 _COMMENT_RE = re.compile(r"(^|\s+)#.*$")
 _ENV_VAR_RE = re.compile(r"(?P<var>\$\{(?P<name>[A-Z0-9_]+)\})")
+_EDITABLE_EXTRAS_RE = re.compile(r"^(?P<path>.+?)(?P<extras>\[[^\]]+\])$")
+_OUTSIDE_WORKSPACE = "Requirements reference must exist inside the workspace"
 _PEP263_ENCODING_RE = re.compile(rb"coding[:=]\s*([-\w.]+)")
 _BOMS = (
     (codecs.BOM_UTF8, "utf-8"),
@@ -60,10 +64,12 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
         ``--disable-pip-version-check`` suppresses pip upgrade notices that
         otherwise go to stderr and fail PowerShell/AppVeyor hosts.
 
-        Requirements files are checked for symlink components, including every
-        local ``-r`` and ``-c`` file pip would open, before pip runs. The path
-        pip opens is kept intact, so a ``..`` segment cannot hide an earlier
-        symlink, and an include that resolves outside the workspace is rejected.
+        Requirements files are checked before pip runs. Symlink components are
+        rejected on the requirements file and on every local ``-r`` and ``-c``
+        file pip would open. An expanded ``-r``, ``-c``, ``--find-links``, or
+        ``-e`` value that is missing or resolves outside the workspace is
+        rejected as well, including a remote requirements URL, so pip cannot
+        print it into the build log.
 
         Args:
             runner: Runner instance used to execute commands.
@@ -100,8 +106,11 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
         return resolved
 
     def _reject_requirements(self, requirements: str, base_path: Path) -> None:
-        seen: set[str] = set()
-        self._reject_requirement_file(requirements, base_path, seen)
+        # The blueprint value is passed straight to ``pip install -r``. A remote
+        # URL, or a file URL pip would fetch, must be rejected before that, or
+        # pip downloads it and opens nested file URLs from the body.
+        filename = _local_requirements_argument(requirements, base_path)
+        self._reject_requirement_file(filename, base_path, set())
 
     def _reject_requirement_file(
         self, filename: str, base_path: Path, seen: set[str]
@@ -125,11 +134,31 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
         except (OSError, UnicodeError, LookupError):
             raise DroneException(f"Could not read requirements file: {path}") from None
 
-        for include in _iter_includes(content, path):
-            nested = _resolve_include(opened, include, base_path)
+        for reference in _iter_references(content, path):
+            self._reject_reference(reference, opened, base_path, seen)
+
+    def _reject_reference(
+        self,
+        reference: tuple[str, str, str],
+        parent_filename: str,
+        base_path: Path,
+        seen: set[str],
+    ) -> None:
+        kind, original, expanded = reference
+        if kind in ("requirement", "constraint"):
+            nested = _nested_requirements_path(expanded, parent_filename, base_path)
             if nested is None:
-                continue
-            self._reject_requirement_file(nested, base_path, seen)
+                _raise_outside(original, expanded)
+            else:
+                self._reject_requirement_file(nested, base_path, seen)
+            return
+
+        if kind == "editable":
+            target = _editable_target(expanded, base_path)
+        else:
+            target = _find_links_target(expanded, parent_filename, base_path)
+        if not _is_local_workspace_path(target, base_path):
+            _raise_outside(original, expanded)
 
 
 def _pip_abspath(filename: str, cwd: Path) -> str:
@@ -160,11 +189,40 @@ def _require_inside_workspace(path: Path, base_path: Path) -> Path:
     return resolved
 
 
-def _resolve_include(parent_filename: str, include: str, cwd: Path) -> str | None:
-    """Return the local path pip would open, or None for a remote include."""
-    if _SCHEME_RE.match(include):
-        if not include.lower().startswith("file:"):
-            return None
+def _local_requirements_argument(requirements: str, cwd: Path) -> str:
+    """Return a local requirements path, rejecting URLs pip would fetch.
+
+    ``pip install -r https://...`` downloads that file and then opens nested
+    ``file://`` paths from it. ``file:///proc/self/environ`` is how that nested
+    file prints the process environment into the build log.
+    """
+    if _is_remote_url(requirements):
+        raise DroneException(f"{_OUTSIDE_WORKSPACE}: {requirements}")
+    if not _is_file_url(requirements):
+        return requirements
+
+    filename = _path_from_file_url(requirements, cwd)
+    path = Path(filename)
+    try:
+        exists = path.is_file()
+    except OSError:
+        exists = False
+    if not exists:
+        raise DroneException(f"{_OUTSIDE_WORKSPACE}: {requirements}")
+    return filename
+
+
+def _resolve_include(parent_filename: str, include: str, cwd: Path) -> str:
+    """Return the local path pip would open.
+
+    Remote ``http`` and ``https`` includes are refused here. Pip would download
+    them and then open nested ``file://`` paths from the downloaded file. The
+    local symlink check never sees those nested paths, and pip's error text
+    can contain the process environment.
+    """
+    if _is_remote_url(include):
+        raise DroneException(f"{_OUTSIDE_WORKSPACE}: remote requirements include")
+    if _is_file_url(include):
         return _path_from_file_url(include, cwd)
 
     # Match pip: join the parent directory and the include, and do not normpath.
@@ -173,7 +231,15 @@ def _resolve_include(parent_filename: str, include: str, cwd: Path) -> str | Non
 
 
 def _path_from_file_url(url: str, cwd: Path) -> str:
+    """Return the local path of a ``file:`` URL pip would open.
+
+    A host other than ``localhost`` is not that local path. Pip treats it as a
+    UNC path on Windows and rejects it on other platforms, so the workspace
+    check would be looking at a different file.
+    """
     parts = urllib.parse.urlsplit(url)
+    if parts.netloc and parts.netloc.lower() != "localhost":
+        raise DroneException(f"{_OUTSIDE_WORKSPACE}: remote requirements include")
     path = urllib.request.url2pathname(parts.path)
     if os.path.isabs(path):
         return path
@@ -200,19 +266,164 @@ def _read_requirements(path: Path) -> str:
         return data.decode(encoding)
 
 
-def _iter_includes(content: str, path: Path):
-    for line in _preprocess_lines(content):
-        include = _include_from_line(line, path)
-        if include is not None:
-            yield include
+def _nested_requirements_path(
+    value: str, parent_filename: str, base_path: Path
+) -> str | None:
+    """Return a local requirements path pip may open, or None to reject it.
+
+    Remote ``http`` and ``https`` includes are not downloaded. Pip would fetch
+    them and then open nested ``file://`` paths from the downloaded file, and
+    the resulting error text can contain the process environment. A local file
+    that resolves outside the workspace is rejected the same way, so the
+    exception keeps the requirements-file spelling instead of a resolved path.
+    """
+    try:
+        local = _resolve_include(parent_filename, value, base_path)
+    except DroneException:
+        return None
+    path = Path(local)
+    try:
+        is_file = path.is_file()
+    except OSError:
+        return None
+    if not is_file or not _is_within_workspace(path, base_path):
+        return None
+    return local
+
+
+def _find_links_target(value: str, parent_filename: str, cwd: Path) -> Path | None:
+    """Return the local find-links path pip would use.
+
+    Pip keeps the original text when the path next to the requirements file
+    does not exist, and then logs that text. Missing and remote values therefore
+    have no local target.
+    """
+    if _is_file_url(value):
+        return Path(_path_from_file_url(value, cwd))
+    if _is_remote_url(value):
+        return None
+
+    parent_dir = os.path.dirname(parent_filename)
+    relative = os.path.normpath(os.path.join(parent_dir, value))
+    if os.path.exists(relative):
+        return Path(relative)
+    raw = Path(_pip_abspath(value, cwd))
+    if raw.exists():
+        return raw
+    return None
+
+
+def _editable_target(value: str, cwd: Path) -> Path | None:
+    """Return the local editable path pip would use, or None for a URL."""
+    if _is_remote_url(value):
+        return None
+    path_value = value
+    extras = _EDITABLE_EXTRAS_RE.match(value)
+    if extras is not None:
+        path_value = extras.group("path")
+    if _is_file_url(path_value):
+        candidate = Path(_path_from_file_url(path_value, cwd))
+    elif _is_remote_url(path_value):
+        return None
+    else:
+        candidate = Path(_pip_abspath(path_value, cwd))
+    try:
+        if not candidate.exists():
+            return None
+    except OSError:
+        return None
+    return candidate
+
+
+def _is_file_url(value: str) -> bool:
+    return value.lower().startswith("file:")
+
+
+def _is_remote_url(value: str) -> bool:
+    """Return whether *value* is a URL pip would fetch or log as-is."""
+    if _is_file_url(value):
+        return False
+    if _SCHEME_RE.match(value) or _VCS_RE.match(value):
+        return True
+    return "://" in value
+
+
+def _is_local_workspace_path(path: Path | None, base_path: Path) -> bool:
+    if path is None:
+        return False
+    try:
+        if not path.exists():
+            return False
+    except OSError:
+        return False
+    return _is_within_workspace(path, base_path)
+
+
+def _is_within_workspace(path: Path, base_path: Path) -> bool:
+    """Return whether *path* resolves inside *base_path*.
+
+    Symlinks are followed, so a link that leaves the workspace is outside.
+    """
+    try:
+        resolved = os.path.normcase(os.path.realpath(path))
+        base = os.path.normcase(os.path.realpath(base_path))
+    except (OSError, ValueError):
+        return False
+    if resolved == base:
+        return True
+    try:
+        return os.path.commonpath([resolved, base]) == base
+    except ValueError:
+        return False
+
+
+def _raise_outside(original: str, expanded: str) -> None:
+    """Reject a reference without echoing an expanded CI secret."""
+    shown = original if original != expanded else expanded
+    raise DroneException(f"{_OUTSIDE_WORKSPACE}: {shown}")
+
+
+def _iter_references(content: str, path: Path):
+    """Yield ``(kind, original_value, expanded_value)`` for options pip uses.
+
+    ``original_value`` keeps the requirements-file spelling when an environment
+    variable was expanded, so a rejection cannot echo the substituted secret.
+    """
+    for original, expanded in _preprocess_lines(content):
+        expanded_refs = _references_from_line(expanded, path)
+        if not expanded_refs:
+            continue
+        original_refs = _original_references(original, expanded, expanded_refs, path)
+        for index, (kind, expanded_value) in enumerate(expanded_refs):
+            original_value = expanded_value
+            if index < len(original_refs) and original_refs[index][0] == kind:
+                original_value = original_refs[index][1]
+            elif original != expanded:
+                original_value = original
+            yield kind, original_value, expanded_value
+
+
+def _original_references(
+    original: str,
+    expanded: str,
+    expanded_refs: list[tuple[str, str]],
+    path: Path,
+) -> list[tuple[str, str]]:
+    if original == expanded:
+        return expanded_refs
+    try:
+        return _references_from_line(original, path)
+    except DroneException:
+        return []
 
 
 def _preprocess_lines(content: str):
+    """Yield ``(original, expanded)`` lines the way pip splits them."""
     lines = _join_lines(content.splitlines())
     for line in lines:
         stripped = _COMMENT_RE.sub("", line).strip()
         if stripped:
-            yield _expand_env_variables(stripped)
+            yield stripped, _expand_env_variables(stripped)
 
 
 def _join_lines(lines: list[str]) -> list[str]:
@@ -245,11 +456,15 @@ def _expand_env_variables(line: str) -> str:
     return line
 
 
-def _include_from_line(line: str, path: Path) -> str | None:
-    """Return the first local ``-r`` or ``-c`` path on an option-only line."""
-    _args, options_str = _break_args_options(line)
-    if _args:
-        return None
+def _references_from_line(line: str, path: Path) -> list[tuple[str, str]]:
+    """Return ``-e``, ``-r``, ``-c``, and ``--find-links`` values pip would use.
+
+    A package line such as ``build -r secret.txt`` is ignored. Pip only acts on
+    these options when the line has no requirement argument.
+    """
+    args, options_str = _break_args_options(line)
+    if args:
+        return []
 
     try:
         tokens = shlex.split(options_str)
@@ -262,11 +477,16 @@ def _include_from_line(line: str, path: Path) -> str | None:
     except _OptionParsingError:
         raise DroneException(f"Could not parse requirements file: {path}") from None
 
-    if opts.requirements:
-        return opts.requirements[0]
-    if opts.constraints:
-        return opts.constraints[0]
-    return None
+    references: list[tuple[str, str]] = []
+    for value in opts.editables or []:
+        references.append(("editable", value))
+    for value in opts.requirements or []:
+        references.append(("requirement", value))
+    for value in opts.constraints or []:
+        references.append(("constraint", value))
+    for value in opts.find_links or []:
+        references.append(("find-links", value))
+    return references
 
 
 def _break_args_options(line: str) -> tuple[str, str]:
