@@ -61,7 +61,9 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
         otherwise go to stderr and fail PowerShell/AppVeyor hosts.
 
         Requirements files are checked for symlink components, including every
-        local ``-r`` and ``-c`` file pip would open, before pip runs.
+        local ``-r`` and ``-c`` file pip would open, before pip runs. The path
+        pip opens is kept intact, so a ``..`` segment cannot hide an earlier
+        symlink, and an include that resolves outside the workspace is rejected.
 
         Args:
             runner: Runner instance used to execute commands.
@@ -104,14 +106,17 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
     def _reject_requirement_file(
         self, filename: str, base_path: Path, seen: set[str]
     ) -> None:
-        absolute = _pip_abspath(filename, base_path)
-        key = os.path.normcase(absolute)
+        opened = _pip_abspath(filename, base_path)
+        path = Path(opened)
+        # Pip joins nested includes and passes that string to open(). Collapsing
+        # ".." first would hide a symlink such as escape/../environ.
+        reject_symlink_component(path, base_path, "Requirements file")
+        resolved = _require_inside_workspace(path, base_path)
+        key = os.path.normcase(str(resolved))
         if key in seen:
             return
         seen.add(key)
 
-        path = Path(absolute)
-        reject_symlink_component(path, base_path, "Requirements file")
         if not path.is_file():
             return
 
@@ -121,16 +126,38 @@ class PythonInstallModule(BaseModule):  # pylint: disable=too-few-public-methods
             raise DroneException(f"Could not read requirements file: {path}") from None
 
         for include in _iter_includes(content, path):
-            nested = _resolve_include(absolute, include, base_path)
+            nested = _resolve_include(opened, include, base_path)
             if nested is None:
                 continue
             self._reject_requirement_file(nested, base_path, seen)
 
 
 def _pip_abspath(filename: str, cwd: Path) -> str:
+    """Return the path pip opens, without collapsing ``..``."""
     if os.path.isabs(filename):
-        return os.path.normpath(filename)
-    return os.path.normpath(os.path.join(str(cwd), filename))
+        return filename
+    return os.path.join(str(cwd), filename)
+
+
+def _require_inside_workspace(path: Path, base_path: Path) -> Path:
+    """Return *path* resolved, or raise when that location leaves the workspace.
+
+    Resolution follows symlinks the way ``open`` does, so ``..`` after a link
+    is applied to the link target rather than the lexical parent.
+    """
+    try:
+        resolved = path.resolve()
+        root = base_path.resolve()
+    except (OSError, RuntimeError):
+        raise DroneException(f"Could not read requirements file: {path}") from None
+
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        raise DroneException(
+            f"Requirements file resolves outside the workspace: {resolved}"
+        ) from None
+    return resolved
 
 
 def _resolve_include(parent_filename: str, include: str, cwd: Path) -> str | None:
@@ -140,7 +167,8 @@ def _resolve_include(parent_filename: str, include: str, cwd: Path) -> str | Non
             return None
         return _path_from_file_url(include, cwd)
 
-    joined = os.path.normpath(os.path.join(os.path.dirname(parent_filename), include))
+    # Match pip: join the parent directory and the include, and do not normpath.
+    joined = os.path.join(os.path.dirname(parent_filename), include)
     return _pip_abspath(joined, cwd)
 
 
@@ -148,7 +176,7 @@ def _path_from_file_url(url: str, cwd: Path) -> str:
     parts = urllib.parse.urlsplit(url)
     path = urllib.request.url2pathname(parts.path)
     if os.path.isabs(path):
-        return os.path.normpath(path)
+        return path
     return _pip_abspath(path, cwd)
 
 
