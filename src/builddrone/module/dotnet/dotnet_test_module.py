@@ -6,12 +6,17 @@ from pathlib import Path
 
 from builddrone.drone_exception import DroneException
 from builddrone.module.dotnet.dotnet_base_module import DotnetBaseModule
+from builddrone.module.dotnet.dotnet_projects import selected_project_files
+from builddrone.path_safety import reject_symlink_component
 
 _LOGGER_NAMES = {
     "nunit": "nunit",
     "xunit": "xunit",
 }
 _RESULTS_FILE = "TestResults.xml"
+# Without --results-directory, the logger writes LogFileName into TestResults
+# beside each project file.
+_DEFAULT_RESULTS_DIRECTORY = "TestResults"
 
 
 class DotnetTestModule(DotnetBaseModule):  # pylint: disable=too-few-public-methods
@@ -21,6 +26,11 @@ class DotnetTestModule(DotnetBaseModule):  # pylint: disable=too-few-public-meth
     ``NunitXml.TestLogger`` for ``nunit``, or ``XunitXml.TestLogger`` for
     ``xunit``. ``framework`` is the target framework passed to ``--framework``.
     ``environment`` selects the test logger.
+
+    Fails before ``dotnet test`` runs when ``TestResults.xml`` is a symlink,
+    or when any directory leading to that file is a symlink. With
+    ``results_directory``, that file is inside the configured directory.
+    Otherwise it is ``TestResults/TestResults.xml`` beside the project file.
 
     Blueprint configuration arguments:
         "environment": "Required test environment: nunit or xunit"
@@ -74,8 +84,21 @@ class DotnetTestModule(DotnetBaseModule):  # pylint: disable=too-few-public-meth
         )
         if results_directory is None:
             logger = f"{logger_name};LogFileName={_RESULTS_FILE}"
+            results_files = self._default_results_files(args, base_path)
         else:
             command.extend(["--results-directory", results_directory])
-            results_file = str(Path(results_directory) / _RESULTS_FILE)
-            logger = f"{logger_name};LogFilePath={results_file}"
+            results_files = [Path(results_directory) / _RESULTS_FILE]
+            logger = f"{logger_name};LogFilePath={results_files[0]}"
+        for results_file in results_files:
+            reject_symlink_component(results_file, base_path, "Results file")
         command.extend(["--logger", logger])
+
+    def _default_results_files(self, args: dict, base_path: Path) -> list[Path]:
+        """Return ``TestResults/TestResults.xml`` beside each selected project."""
+        projects = selected_project_files(
+            self._project_path(args, base_path), base_path
+        )
+        return [
+            project.parent / _DEFAULT_RESULTS_DIRECTORY / _RESULTS_FILE
+            for project in projects
+        ]

@@ -6,6 +6,8 @@ from dotnet_module_test_support import (
     DOTNET,
     WHICH,
     DotnetModuleTestCase,
+    plant_file_symlink,
+    reported_symlink,
 )
 
 from builddrone.drone_exception import DroneException
@@ -83,6 +85,143 @@ class TestDotnetTestModule(DotnetModuleTestCase):
         self.assertEqual(
             str(context.exception),
             "Argument 'environment' must be 'nunit' or 'xunit'",
+        )
+
+    def test_run_rejects_symlinked_results_file(self):
+        """Reject TestResults.xml planted inside an otherwise real results directory."""
+        results = self.base_path / "results" / "nunit"
+        results.mkdir(parents=True)
+        planted = results / "TestResults.xml"
+        host = plant_file_symlink(self, planted)
+
+        with self.assertRaises(DroneException) as context:
+            DotnetTestModule().run(
+                self.runner,
+                {"environment": "nunit", "results_directory": "results/nunit"},
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Results file must not be a symlink: {planted}",
+        )
+        self.runner.run_command.assert_not_called()
+        self.assertEqual(host.read_text(encoding="utf-8"), "keep\n")
+
+    def test_run_rejects_symlinked_results_file_when_symlinks_unavailable(self):
+        """Reject a results file reported as a symlink."""
+        results = self.base_path / "results" / "xunit"
+        results.mkdir(parents=True)
+        planted = results / "TestResults.xml"
+        planted.write_text("keep\n", encoding="utf-8")
+
+        with reported_symlink(planted):
+            with self.assertRaises(DroneException) as context:
+                DotnetTestModule().run(
+                    self.runner,
+                    {"environment": "xunit", "results_directory": "results/xunit"},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Results file must not be a symlink: {planted}",
+        )
+        self.runner.run_command.assert_not_called()
+
+    def test_run_rejects_default_results_symlink(self):
+        """Reject TestResults/TestResults.xml when results_directory is omitted."""
+        planted = self.base_path / "TestResults" / "TestResults.xml"
+        planted.parent.mkdir()
+        planted.write_text("keep\n", encoding="utf-8")
+
+        with reported_symlink(planted):
+            with self.assertRaises(DroneException) as context:
+                DotnetTestModule().run(
+                    self.runner,
+                    {"environment": "nunit", "project": "App.csproj"},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Results file must not be a symlink: {planted}",
+        )
+        self.runner.run_command.assert_not_called()
+
+    def test_run_rejects_default_results_symlink_beside_nested_project(self):
+        """Reject the default results file beside the project, not the blueprint root."""
+        project_dir = self.base_path / "tests" / "Nested"
+        project_dir.mkdir(parents=True)
+        project = project_dir / "Nested.csproj"
+        project.write_text("<Project />\n", encoding="utf-8")
+        planted = project_dir / "TestResults" / "TestResults.xml"
+        planted.parent.mkdir()
+        planted.write_text("keep\n", encoding="utf-8")
+
+        with reported_symlink(planted):
+            with self.assertRaises(DroneException) as context:
+                DotnetTestModule().run(
+                    self.runner,
+                    {
+                        "environment": "xunit",
+                        "project": "tests/Nested/Nested.csproj",
+                    },
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Results file must not be a symlink: {planted}",
+        )
+        self.runner.run_command.assert_not_called()
+
+    def test_run_rejects_default_results_symlink_in_solution(self):
+        """Reject a default results symlink for a project listed in a solution."""
+        project_dir = self.base_path / "tests" / "Sample"
+        project_dir.mkdir(parents=True)
+        project = project_dir / "Sample.csproj"
+        project.write_text("<Project />\n", encoding="utf-8")
+        solution = self.base_path / "Sample.slnx"
+        solution.write_text(
+            "<Solution>"
+            '<Project Path="tests/Sample/Sample.csproj" />'
+            "</Solution>\n",
+            encoding="utf-8",
+        )
+        planted = project_dir / "TestResults" / "TestResults.xml"
+        planted.parent.mkdir()
+        planted.write_text("keep\n", encoding="utf-8")
+
+        with reported_symlink(planted):
+            with self.assertRaises(DroneException) as context:
+                DotnetTestModule().run(
+                    self.runner,
+                    {"environment": "nunit", "project": "Sample.slnx"},
+                )
+
+        self.assertEqual(
+            str(context.exception),
+            f"Results file must not be a symlink: {planted}",
+        )
+        self.runner.run_command.assert_not_called()
+
+    def test_run_allows_regular_results_file(self):
+        """Run when TestResults.xml is a normal file."""
+        results = self.base_path / "results"
+        results.mkdir()
+        (results / "TestResults.xml").write_text("<xml />\n", encoding="utf-8")
+
+        with patch(WHICH, return_value=DOTNET):
+            DotnetTestModule().run(
+                self.runner,
+                {"environment": "nunit", "results_directory": "results"},
+            )
+
+        self.assert_command(
+            [
+                "test",
+                "--results-directory",
+                str(results),
+                "--logger",
+                f"nunit;LogFilePath={results / 'TestResults.xml'}",
+            ]
         )
 
     def test_run_rejects_results_file(self):

@@ -1,10 +1,12 @@
 """Shared setup for dotnet module tests."""
 
+import os
 import shutil
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from builddrone.runner import Runner
 
@@ -42,3 +44,28 @@ class DotnetModuleTestCase(unittest.TestCase):
             [DOTNET, *arguments],
             cwd=str(self.base_path),
         )
+
+
+def plant_file_symlink(test_case, link):
+    """Point ``link`` at a host file, or skip when symlinks cannot be created."""
+    host = test_case.base_path / "host.txt"
+    host.write_text("keep\n", encoding="utf-8")
+    try:
+        os.symlink(host, link)
+    except OSError:
+        test_case.skipTest("Cannot create symlinks on this platform")
+    return host
+
+
+@contextmanager
+def reported_symlink(path):
+    """Report ``path`` as a symlink without creating one."""
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(path_self):
+        if path_self == path:
+            return True
+        return original_is_symlink(path_self)
+
+    with patch.object(Path, "is_symlink", fake_is_symlink):
+        yield
